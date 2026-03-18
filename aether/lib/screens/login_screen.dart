@@ -146,11 +146,11 @@ class _LoginScreenState extends State<LoginScreen>
                   final width = constraints.maxWidth;
                   final height = constraints.maxHeight;
                   final petSize = clampDouble(width * 1.3, 400, 580);
-                  final titleSize = clampDouble(width * 0.072, 28, 35);
+                  final titleSize = clampDouble(width * 0.075, 29, 37);
                   final bodySize = clampDouble(width * 0.033, 13, 14.5);
                   final buttonHeight = clampDouble(height * 0.075, 56, 60);
                   final horizontalPadding = clampDouble(width * 0.075, 24, 34);
-                  final contentMaxWidth = clampDouble(width * 0.9, 0, 430);
+                  final contentMaxWidth = clampDouble(width * 0.92, 0, 450);
 
                   // Calculate position to center pet in background image (50% of full screen)
                   final fullScreenHeight = MediaQuery.of(context).size.height;
@@ -177,11 +177,11 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         // Middle section - quote
                         Transform.translate(
-                          offset: const Offset(0, -30),
+                          offset: const Offset(0, -80),
                           child: ConstrainedBox(
                             constraints: BoxConstraints(maxWidth: contentMaxWidth),
                             child: Text(
-                              'Aether grows with you,\none step at a time.',
+                              'Aether grows with you, one step at a time.',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.poppins(
                                 fontSize: titleSize,
