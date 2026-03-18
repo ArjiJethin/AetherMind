@@ -418,10 +418,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            // Pet image - positioned to overflow upward from container (head overflows)
+            // Pet image - anchored to bottom-right corner with head overflowing outside the card
             Positioned(
-              right: -50,
-              bottom: -15,
+              right: 10,
+              bottom: 5,
               child: TweenAnimationBuilder(
                 tween: Tween<double>(begin: 0.8, end: 1.0),
                 duration: const Duration(milliseconds: 800),
@@ -431,8 +431,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     scale: value,
                     child: Image.asset(
                       'assets/imgs/wolfie.png',
-                      width: 340,
-                      height: 340,
+                      width: 330,
+                      height: 330,
                       fit: BoxFit.contain,
                     ),
                   );
@@ -948,7 +948,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBottomNav() {
-    return Container(
+    return SizedBox(
       width: MediaQuery.of(context).size.width * 0.9,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(30),
