@@ -3,8 +3,7 @@ import 'dart:ui' show ImageFilter, clampDouble;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-import 'home_screen.dart';
+import 'package:flutter/services.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
@@ -27,7 +26,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+  with TickerProviderStateMixin {
   static const _backgroundTop = Color(0xFFB8D3CC);
   static const _backgroundMid = Color(0xFF87AAA2);
   static const _backgroundBottom = Color(0xFF4F6E69);
@@ -36,19 +35,28 @@ class _LoginScreenState extends State<LoginScreen>
   static const _softWhite = Color(0xFFF7FFFB);
 
   late final AnimationController _controller;
+  late final AnimationController _screenTransitionController;
   late final Animation<double> _floatOffset;
   late final Animation<double> _glowStrength;
   late final TapGestureRecognizer _privacyRecognizer;
   late final TapGestureRecognizer _termsRecognizer;
   TapGestureRecognizer? _psychiatristRecognizer;
 
+  String _currentScreen = 'main'; // 'main', 'signup', 'login', 'professional'
+
   @override
   void initState() {
     super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2600),
     )..repeat(reverse: true);
+    _screenTransitionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+      value: 1,
+    );
     _floatOffset = Tween<double>(begin: -30, end: -14).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
@@ -57,9 +65,9 @@ class _LoginScreenState extends State<LoginScreen>
     );
     _privacyRecognizer = TapGestureRecognizer()..onTap = _handlePrivacyPolicy;
     _termsRecognizer = TapGestureRecognizer()..onTap = _handleTermsOfService;
-    _psychiatristRecognizer = TapGestureRecognizer()..onTap = _handlePsychiatristLogin;
+    _psychiatristRecognizer =
+        TapGestureRecognizer()..onTap = _handlePsychiatristLogin;
 
-    // Precache images after the frame is rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
       precacheImage(
         const AssetImage('assets/imgs/intro-bg.png'),
@@ -78,42 +86,105 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _controller.dispose();
+    _screenTransitionController.dispose();
     _privacyRecognizer.dispose();
     _termsRecognizer.dispose();
     _psychiatristRecognizer?.dispose();
     super.dispose();
   }
 
-  void _handleStartJourney() {
-    if (widget.onStartJourney != null) {
-      widget.onStartJourney!.call();
+  Future<void> _switchToScreen(String screen) async {
+    if (_currentScreen == screen) {
       return;
     }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    await _screenTransitionController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInCubic,
     );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _currentScreen = screen;
+    });
+
+    _screenTransitionController.forward(from: 0);
+  }
+
+  void _handleStartJourney() {
+    _switchToScreen('signup');
   }
 
   void _handleExistingAccount() {
-    widget.onExistingAccount?.call();
-  }
-
-  void _handlePrivacyPolicy() {
-    widget.onPrivacyPolicy?.call();
-  }
-
-  void _handleTermsOfService() {
-    widget.onTermsOfService?.call();
+    _switchToScreen('login');
   }
 
   void _handlePsychiatristLogin() {
-    widget.onPsychiatristLogin?.call();
+    _switchToScreen('professional');
+  }
+
+  void _backToMainScreen() {
+    _switchToScreen('main');
+  }
+
+  void _handlePrivacyPolicy() {
+    if (widget.onPrivacyPolicy != null) {
+      widget.onPrivacyPolicy!.call();
+    } else {
+      _showPlaceholderDialog(
+        'Privacy Policy',
+        'This is our Privacy Policy placeholder text.\n\nYour privacy is important to us. We collect and process personal data in accordance with applicable regulations.',
+      );
+    }
+  }
+
+  void _handleTermsOfService() {
+    if (widget.onTermsOfService != null) {
+      widget.onTermsOfService!.call();
+    } else {
+      _showPlaceholderDialog(
+        'Terms of Service',
+        'This is our Terms of Service placeholder text.\n\nBy using our service, you agree to comply with these terms and conditions.',
+      );
+    }
+  }
+
+  void _showPlaceholderDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: SingleChildScrollView(
+          child: Text(content, style: GoogleFonts.inter()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final screenTransition = CurvedAnimation(
+      parent: _screenTransitionController,
+      curve: Curves.easeOutCubic,
+    );
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -131,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen>
               left: 0,
               right: 0,
               child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.5,
+                height: screenHeight * 0.5,
                 child: const _FullScreenBackgroundImage(),
               ),
             ),
@@ -139,159 +210,1027 @@ class _LoginScreenState extends State<LoginScreen>
             // Ambient decorations
             const Positioned.fill(child: _AmbientBackdrop()),
 
-            // Content
-            SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-                  final height = constraints.maxHeight;
-                  final petSize = clampDouble(width * 1.3, 400, 580);
-                  final titleSize = clampDouble(width * 0.075, 29, 37);
-                  final bodySize = clampDouble(width * 0.033, 13, 14.5);
-                  final buttonHeight = clampDouble(height * 0.075, 56, 60);
-                  final horizontalPadding = clampDouble(width * 0.075, 24, 34);
-                  final contentMaxWidth = clampDouble(width * 0.92, 0, 450);
+            // Very soft readability transition around the split.
+            const Positioned.fill(child: _MidScreenReadabilityGradient()),
 
-                  // Calculate position to center pet in background image (50% of full screen)
-                  final fullScreenHeight = MediaQuery.of(context).size.height;
-                  final bgImageHeight = fullScreenHeight * 0.5;
-                  final topSectionHeight = bgImageHeight - MediaQuery.of(context).padding.top;
-                  
-                  return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                    child: Column(
+            if (_currentScreen == 'main')
+              SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    final petSize = clampDouble(width * 1.3, 400, 580);
+                    final titleSize = clampDouble(width * 0.075, 29, 37);
+                    final bodySize = clampDouble(width * 0.033, 13, 14.5);
+                    final buttonHeight = clampDouble(
+                      constraints.maxHeight * 0.075,
+                      56,
+                      60,
+                    );
+
+                    final bgImageHeight = screenHeight * 0.5;
+                    final topSectionHeight = bgImageHeight - mediaQuery.padding.top;
+
+                    return Stack(
                       children: [
-                        // Top section - pet only (centered in background image)
-                        SizedBox(
-                          height: topSectionHeight,
-                          child: Center(
-                            child: SizedBox(
-                              height: petSize * 0.55,
-                              child: _PetOverlay(
-                                petSize: petSize,
-                                floatOffset: _floatOffset,
-                                glowStrength: _glowStrength,
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Middle section - quote
-                        Transform.translate(
-                          offset: const Offset(0, -80),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: contentMaxWidth),
-                            child: Text(
-                              'Aether grows with you, one step at a time.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.poppins(
-                                fontSize: titleSize,
-                                fontWeight: FontWeight.w600,
-                                height: 1.35,
-                                letterSpacing: -0.3,
-                                color: _softWhite.withValues(alpha: 0.92),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Flexible spacer
-                        Expanded(
-                          child: Container(),
-                        ),
-                        // Bottom section - buttons and policies
-                        ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: contentMaxWidth),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _PrimaryActionButton(
-                                height: buttonHeight,
-                                onTap: _handleStartJourney,
-                              ),
-                              const SizedBox(height: 14),
-                              _SecondaryActionButton(
-                                height: buttonHeight,
-                                onTap: _handleExistingAccount,
-                              ),
-                              SizedBox(height: height * 0.02),
-                              Text.rich(
-                                TextSpan(
-                                  style: GoogleFonts.inter(
-                                    fontSize: bodySize,
-                                    height: 1.55,
-                                    color: _softWhite.withValues(alpha: 0.7),
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: SizedBox(
+                            height: topSectionHeight,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  height: petSize * 0.5,
+                                  child: _PetOverlay(
+                                    petSize: petSize,
+                                    floatOffset: _floatOffset,
+                                    glowStrength: _glowStrength,
                                   ),
-                                  children: [
-                                    const TextSpan(
-                                      text: 'By continuing, you agree to our ',
-                                    ),
-                                    TextSpan(
-                                      text: 'Privacy Policy',
-                                      recognizer: _privacyRecognizer,
-                                      style: GoogleFonts.inter(
-                                        fontSize: bodySize,
-                                        height: 1.55,
-                                        fontWeight: FontWeight.w600,
-                                        color: _softWhite.withValues(alpha: 0.9),
-                                      ),
-                                    ),
-                                    const TextSpan(text: ' and '),
-                                    TextSpan(
-                                      text: 'Terms of Service',
-                                      recognizer: _termsRecognizer,
-                                      style: GoogleFonts.inter(
-                                        fontSize: bodySize,
-                                        height: 1.55,
-                                        fontWeight: FontWeight.w600,
-                                        color: _softWhite.withValues(alpha: 0.9),
-                                      ),
-                                    ),
-                                  ],
                                 ),
-                                textAlign: TextAlign.center,
-                              ),
-                              if (widget.onPsychiatristLogin != null)
+                                const SizedBox(height: 12),
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text.rich(
-                                    TextSpan(
-                                      style: GoogleFonts.inter(
-                                        fontSize: bodySize * 0.85,
-                                        height: 1.4,
-                                        color: _softWhite.withValues(alpha: 0.45),
-                                      ),
-                                      children: [
-                                        const TextSpan(
-                                          text: 'Are you a ',
-                                        ),
-                                        TextSpan(
-                                          text: 'professional?',
-                                          recognizer: _psychiatristRecognizer,
-                                          style: GoogleFonts.inter(
-                                            fontSize: bodySize * 0.85,
-                                            height: 1.4,
-                                            fontWeight: FontWeight.w700,
-                                            color: _softWhite.withValues(alpha: 0.75),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: clampDouble(width * 0.1, 22, 40),
+                                  ),
+                                  child: Text(
+                                    'Aether grows with you, one step at a time.',
                                     textAlign: TextAlign.center,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: titleSize,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.35,
+                                      letterSpacing: -0.3,
+                                      color: _softWhite.withValues(alpha: 0.92),
+                                    ),
                                   ),
                                 ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                        SizedBox(height: height * 0.02),
+                        Positioned(
+                          top: bgImageHeight,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(30),
+                              topRight: Radius.circular(30),
+                            ),
+                            child: _BottomAttachedMainPanel(
+                              buttonHeight: buttonHeight,
+                              bodySize: bodySize,
+                              onStartJourney: _handleStartJourney,
+                              onExistingAccount: _handleExistingAccount,
+                              privacyRecognizer: _privacyRecognizer,
+                              termsRecognizer: _termsRecognizer,
+                              psychiatristRecognizer: _psychiatristRecognizer,
+                            ),
+                          ),
+                        ),
                       ],
+                    );
+                  },
+                ),
+              )
+            else
+              Positioned(
+                top: mediaQuery.padding.top,
+                left: 0,
+                right: 0,
+                child: SizedBox(
+                  height: (screenHeight * 0.5) - mediaQuery.padding.top,
+                  child: AnimatedBuilder(
+                    animation: screenTransition,
+                    builder: (context, child) {
+                      final t = screenTransition.value;
+                      return Opacity(
+                        opacity: 0.35 + (t * 0.65),
+                        child: Transform.translate(
+                          offset: Offset(0, (1 - t) * 44),
+                          child: Transform.scale(
+                            scale: 0.82 + (t * 0.18),
+                            child: child,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Center(
+                      child: SizedBox(
+                        height: clampDouble(mediaQuery.size.width * 0.95, 230, 320),
+                        child: _PetOverlay(
+                          petSize: clampDouble(mediaQuery.size.width * 1.05, 300, 420),
+                          floatOffset: _floatOffset,
+                          glowStrength: _glowStrength,
+                        ),
+                      ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
-            ),
+            if (_currentScreen != 'main')
+              Positioned(
+                top: screenHeight * 0.5,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: FadeTransition(
+                  opacity: screenTransition,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.08),
+                      end: Offset.zero,
+                    ).animate(screenTransition),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(30),
+                        topRight: Radius.circular(30),
+                      ),
+                      child: _BottomAttachedAuthForm(
+                        currentScreen: _currentScreen,
+                        onBack: _backToMainScreen,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MidScreenReadabilityGradient extends StatelessWidget {
+  const _MidScreenReadabilityGradient();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.transparent,
+              Colors.transparent,
+              Colors.black.withValues(alpha: 0.05),
+              Colors.black.withValues(alpha: 0.14),
+            ],
+            stops: const [0.0, 0.47, 0.62, 1.0],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomAttachedAuthForm extends StatelessWidget {
+  const _BottomAttachedAuthForm({
+    required this.currentScreen,
+    required this.onBack,
+  });
+
+  final String currentScreen;
+  final VoidCallback onBack;
+
+  double _estimatedContentHeight() {
+    switch (currentScreen) {
+      case 'signup':
+        return 420;
+      case 'professional':
+        return 420;
+      case 'login':
+      default:
+        return 300;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final width = mediaQuery.size.width;
+    final horizontalPadding = clampDouble(width * 0.06, 20, 24);
+    final titleSize = clampDouble(width * 0.075, 29, 37);
+    final bodySize = clampDouble(width * 0.035, 13.5, 15);
+    const buttonHeight = 52.0;
+
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final safeBottom = mediaQuery.padding.bottom;
+          final availableHeight = constraints.maxHeight - safeBottom;
+          final estimatedContentHeight = _estimatedContentHeight();
+          final balancedInset = ((availableHeight - estimatedContentHeight) / 2)
+              .clamp(20.0, 36.0)
+              .toDouble();
+
+          return Stack(
+            children: [
+              SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      balancedInset,
+                      horizontalPadding,
+                      balancedInset + safeBottom,
+                    ),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 450),
+                        child: currentScreen == 'signup'
+                            ? _SignUpForm(
+                                titleSize: titleSize,
+                                bodySize: bodySize,
+                                buttonHeight: buttonHeight,
+                                onBack: onBack,
+                              )
+                            : currentScreen == 'login'
+                            ? _LoginForm(
+                                titleSize: titleSize,
+                                bodySize: bodySize,
+                                buttonHeight: buttonHeight,
+                                onBack: onBack,
+                              )
+                            : _ProfessionalForm(
+                                titleSize: titleSize,
+                                bodySize: bodySize,
+                                buttonHeight: buttonHeight,
+                                onBack: onBack,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 64,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.11),
+                          Colors.white.withValues(alpha: 0.03),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.45, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.14),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _BottomAttachedMainPanel extends StatelessWidget {
+  const _BottomAttachedMainPanel({
+    required this.buttonHeight,
+    required this.bodySize,
+    required this.onStartJourney,
+    required this.onExistingAccount,
+    required this.privacyRecognizer,
+    required this.termsRecognizer,
+    required this.psychiatristRecognizer,
+  });
+
+  final double buttonHeight;
+  final double bodySize;
+  final VoidCallback onStartJourney;
+  final VoidCallback onExistingAccount;
+  final TapGestureRecognizer privacyRecognizer;
+  final TapGestureRecognizer termsRecognizer;
+  final TapGestureRecognizer? psychiatristRecognizer;
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final width = mediaQuery.size.width;
+    final horizontalPadding = clampDouble(width * 0.06, 20, 24);
+    final safeBottom = mediaQuery.padding.bottom;
+    const verticalInset = 22.0;
+
+    return Stack(
+      children: [
+        SizedBox.expand(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              verticalInset,
+              horizontalPadding,
+              verticalInset + safeBottom,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 450),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _PrimaryActionButton(
+                      height: buttonHeight,
+                      onTap: onStartJourney,
+                    ),
+                    const SizedBox(height: 14),
+                    _SecondaryActionButton(
+                      height: buttonHeight,
+                      onTap: onExistingAccount,
+                    ),
+                    const SizedBox(height: 22),
+                    Text.rich(
+                      TextSpan(
+                        style: GoogleFonts.inter(
+                          fontSize: bodySize,
+                          height: 1.55,
+                          color: _LoginScreenState._softWhite.withValues(alpha: 0.7),
+                        ),
+                        children: [
+                          const TextSpan(
+                            text: 'By continuing, you agree to our ',
+                          ),
+                          TextSpan(
+                            text: 'Privacy Policy',
+                            recognizer: privacyRecognizer,
+                            style: GoogleFonts.inter(
+                              fontSize: bodySize,
+                              height: 1.55,
+                              fontWeight: FontWeight.w600,
+                              color: _LoginScreenState._softWhite.withValues(alpha: 0.9),
+                            ),
+                          ),
+                          const TextSpan(text: ' and '),
+                          TextSpan(
+                            text: 'Terms of Service',
+                            recognizer: termsRecognizer,
+                            style: GoogleFonts.inter(
+                              fontSize: bodySize,
+                              height: 1.55,
+                              fontWeight: FontWeight.w600,
+                              color: _LoginScreenState._softWhite.withValues(alpha: 0.9),
+                            ),
+                          ),
+                          const TextSpan(text: '. Are you a '),
+                          TextSpan(
+                            text: 'professional?',
+                            recognizer: psychiatristRecognizer,
+                            style: GoogleFonts.inter(
+                              fontSize: bodySize,
+                              height: 1.55,
+                              fontWeight: FontWeight.w600,
+                              color: _LoginScreenState._softWhite.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: Container(
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.11),
+                    Colors.white.withValues(alpha: 0.03),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.45, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.14),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AuthFormHeader extends StatelessWidget {
+  const _AuthFormHeader({
+    required this.title,
+    required this.titleSize,
+    required this.onBack,
+  });
+
+  final String title;
+  final double titleSize;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    const softWhite = Color(0xFFF7FFFB);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        GestureDetector(
+          onTap: onBack,
+          child: Icon(
+            Icons.arrow_back,
+            color: softWhite.withValues(alpha: 0.85),
+            size: 22,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: titleSize * 0.76,
+              fontWeight: FontWeight.w600,
+              color: softWhite,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AuthInputField extends StatelessWidget {
+  const _AuthInputField({
+    required this.controller,
+    required this.label,
+    required this.bodySize,
+    this.obscureText = false,
+    this.validator,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final double bodySize;
+  final bool obscureText;
+  final String? Function(String?)? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    const softWhite = Color(0xFFF7FFFB);
+
+    return SizedBox(
+      height: 50,
+      child: TextFormField(
+        controller: controller,
+        obscureText: obscureText,
+        validator: validator,
+        style: GoogleFonts.inter(
+          fontSize: bodySize * 0.93,
+          color: softWhite,
+          fontWeight: FontWeight.w400,
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: GoogleFonts.inter(
+            fontSize: bodySize * 0.88,
+            color: softWhite.withValues(alpha: 0.62),
+            fontWeight: FontWeight.w400,
+          ),
+          filled: true,
+          fillColor: softWhite.withValues(alpha: 0.035),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: softWhite.withValues(alpha: 0.22),
+              width: 1,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: softWhite.withValues(alpha: 0.22),
+              width: 1,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: softWhite.withValues(alpha: 0.45),
+              width: 1.2,
+            ),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(
+              color: Color(0xFFE74C3C),
+              width: 1,
+            ),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(
+              color: Color(0xFFE74C3C),
+              width: 1.2,
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthSubmitButton extends StatelessWidget {
+  const _AuthSubmitButton({
+    required this.text,
+    required this.bodySize,
+    required this.height,
+    required this.onTap,
+  });
+
+  final String text;
+  final double bodySize;
+  final double height;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const softWhite = Color(0xFFF7FFFB);
+
+    return SizedBox(
+      height: height,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF3A8B81), Color(0xFF2A6560)],
+              ),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Text(
+                text,
+                style: GoogleFonts.inter(
+                  fontSize: bodySize * 1.05,
+                  fontWeight: FontWeight.w600,
+                  color: softWhite,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StaggerReveal extends StatefulWidget {
+  const _StaggerReveal({
+    required this.child,
+    required this.order,
+  });
+
+  final Widget child;
+  final int order;
+
+  @override
+  State<_StaggerReveal> createState() => _StaggerRevealState();
+}
+
+class _StaggerRevealState extends State<_StaggerReveal> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(Duration(milliseconds: 70 + (widget.order * 65)), () {
+      if (mounted) {
+        setState(() {
+          _visible = true;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      opacity: _visible ? 1 : 0,
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+        offset: _visible ? Offset.zero : const Offset(0, 0.12),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _SignUpForm extends StatefulWidget {
+  final double titleSize;
+  final double bodySize;
+  final double buttonHeight;
+  final VoidCallback onBack;
+
+  const _SignUpForm({
+    required this.titleSize,
+    required this.bodySize,
+    required this.buttonHeight,
+    required this.onBack,
+  });
+
+  @override
+  State<_SignUpForm> createState() => _SignUpFormState();
+}
+
+class _SignUpFormState extends State<_SignUpForm> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
+  late TextEditingController _confirmPasswordController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+    _confirmPasswordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _StaggerReveal(
+          order: 0,
+          child: _AuthFormHeader(
+            title: 'Create Account',
+            titleSize: widget.titleSize,
+            onBack: widget.onBack,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _StaggerReveal(
+                order: 1,
+                child: _AuthInputField(
+                  controller: _nameController,
+                  label: 'Full Name',
+                  bodySize: widget.bodySize,
+                  validator: (value) =>
+                      value?.isEmpty ?? true ? 'Name required' : null,
+                ),
+              ),
+              const SizedBox(height: 15),
+              _StaggerReveal(
+                order: 2,
+                child: _AuthInputField(
+                  controller: _emailController,
+                  label: 'Email',
+                  bodySize: widget.bodySize,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) return 'Email required';
+                    if (!value!.contains('@')) return 'Valid email required';
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(height: 15),
+              _StaggerReveal(
+                order: 3,
+                child: _AuthInputField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  bodySize: widget.bodySize,
+                  obscureText: true,
+                  validator: (value) => (value?.length ?? 0) < 6
+                      ? 'Password must be 6+ characters'
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 15),
+              _StaggerReveal(
+                order: 4,
+                child: _AuthInputField(
+                  controller: _confirmPasswordController,
+                  label: 'Confirm Password',
+                  bodySize: widget.bodySize,
+                  obscureText: true,
+                  validator: (value) => value != _passwordController.text
+                      ? 'Passwords do not match'
+                      : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        _StaggerReveal(
+          order: 5,
+          child: _AuthSubmitButton(
+            text: 'Sign Up',
+            bodySize: widget.bodySize,
+            height: widget.buttonHeight,
+            onTap: () {
+              if (_formKey.currentState!.validate()) {}
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoginForm extends StatefulWidget {
+  final double titleSize;
+  final double bodySize;
+  final double buttonHeight;
+  final VoidCallback onBack;
+
+  const _LoginForm({
+    required this.titleSize,
+    required this.bodySize,
+    required this.buttonHeight,
+    required this.onBack,
+  });
+
+  @override
+  State<_LoginForm> createState() => _LoginFormState();
+}
+
+class _LoginFormState extends State<_LoginForm> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _StaggerReveal(
+          order: 0,
+          child: _AuthFormHeader(
+            title: 'Welcome Back',
+            titleSize: widget.titleSize,
+            onBack: widget.onBack,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _StaggerReveal(
+                order: 1,
+                child: _AuthInputField(
+                  controller: _emailController,
+                  label: 'Email or Username',
+                  bodySize: widget.bodySize,
+                  validator: (value) => value?.isEmpty ?? true
+                      ? 'Email/username required'
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 15),
+              _StaggerReveal(
+                order: 2,
+                child: _AuthInputField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  bodySize: widget.bodySize,
+                  obscureText: true,
+                  validator: (value) =>
+                      value?.isEmpty ?? true ? 'Password required' : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        _StaggerReveal(
+          order: 3,
+          child: _AuthSubmitButton(
+            text: 'Login',
+            bodySize: widget.bodySize,
+            height: widget.buttonHeight,
+            onTap: () {
+              if (_formKey.currentState!.validate()) {}
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfessionalForm extends StatefulWidget {
+  final double titleSize;
+  final double bodySize;
+  final double buttonHeight;
+  final VoidCallback onBack;
+
+  const _ProfessionalForm({
+    required this.titleSize,
+    required this.bodySize,
+    required this.buttonHeight,
+    required this.onBack,
+  });
+
+  @override
+  State<_ProfessionalForm> createState() => _ProfessionalFormState();
+}
+
+class _ProfessionalFormState extends State<_ProfessionalForm> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _licenseController;
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+    _licenseController = TextEditingController();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _licenseController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _StaggerReveal(
+          order: 0,
+          child: _AuthFormHeader(
+            title: 'Professional Login',
+            titleSize: widget.titleSize,
+            onBack: widget.onBack,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _StaggerReveal(
+                order: 1,
+                child: _AuthInputField(
+                  controller: _nameController,
+                  label: 'Full Name',
+                  bodySize: widget.bodySize,
+                  validator: (value) =>
+                      value?.isEmpty ?? true ? 'Name required' : null,
+                ),
+              ),
+              const SizedBox(height: 15),
+              _StaggerReveal(
+                order: 2,
+                child: _AuthInputField(
+                  controller: _licenseController,
+                  label: 'License Number',
+                  bodySize: widget.bodySize,
+                  validator: (value) => value?.isEmpty ?? true
+                      ? 'License number required'
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 15),
+              _StaggerReveal(
+                order: 3,
+                child: _AuthInputField(
+                  controller: _emailController,
+                  label: 'Professional Email',
+                  bodySize: widget.bodySize,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) return 'Email required';
+                    if (!value!.contains('@')) return 'Valid email required';
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(height: 15),
+              _StaggerReveal(
+                order: 4,
+                child: _AuthInputField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  bodySize: widget.bodySize,
+                  obscureText: true,
+                  validator: (value) => (value?.length ?? 0) < 6
+                      ? 'Password must be 6+ characters'
+                      : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        _StaggerReveal(
+          order: 5,
+          child: _AuthSubmitButton(
+            text: 'Verify & Login',
+            bodySize: widget.bodySize,
+            height: widget.buttonHeight,
+            onTap: () {
+              if (_formKey.currentState!.validate()) {}
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -360,72 +1299,21 @@ class _FullScreenBackgroundImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final imageHeight = screenHeight * 0.5;
-    
-    // Color-synced background - sampled from image bottom tones
-    final imageBottomVeryLight = const Color(0xFF9AC4BD);  // very light fade
-    final imageBottomLight = const Color(0xFF8DB8B1);      // light from image
-    final imageBottomMid = const Color(0xFF7BA9A0);        // mid tone
-    final bgTransition = const Color(0xFF87AAA2);          // transition to background
-    
+    final imageHeight = MediaQuery.of(context).size.height * 0.5;
+
     return Stack(
       children: [
-        // Color-synced background gradient (matches image bottom colors)
-        Container(
+        Image.asset(
+          'assets/imgs/intro-bg.png',
           width: double.infinity,
           height: imageHeight,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                imageBottomVeryLight.withValues(alpha: 0.7),
-                imageBottomLight,
-                imageBottomMid,
-                bgTransition,
-              ],
-              stops: const [0.0, 0.45, 0.7, 1.0],
-            ),
-          ),
+          fit: BoxFit.cover,
         ),
-        
-        // Image with U-shaped clip and extended smooth fade
-        ClipPath(
-          clipper: _UShapedClipper(imageHeight),
-          child: ShaderMask(
-            shaderCallback: (Rect bounds) {
-              // Extended soft fade spanning ~250-300px
-              return LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.white,                                  // 0.0 - fully visible
-                  Colors.white,                                  // 0.55 - still fully visible
-                  Colors.white.withValues(alpha: 0.88),         // 0.63 - very subtle fade
-                  Colors.white.withValues(alpha: 0.6),          // 0.75 - noticeable fade
-                  Colors.white.withValues(alpha: 0.25),         // 0.87 - mostly faded
-                  Colors.transparent,                            // 1.0 - fully transparent
-                ],
-                stops: const [0.0, 0.55, 0.63, 0.75, 0.87, 1.0],
-              ).createShader(bounds);
-            },
-            blendMode: BlendMode.dstIn,
-            child: Image.asset(
-              'assets/imgs/intro-bg.png',
-              width: double.infinity,
-              height: imageHeight,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        
-        // Micro feather layer - extremely subtle edge softening (5-10% opacity)
         Positioned(
           bottom: 0,
           left: 0,
           right: 0,
-          height: 50,  // Very thin feather band at edge
+          height: 120,
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -433,7 +1321,7 @@ class _FullScreenBackgroundImage extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  bgTransition.withValues(alpha: 0.06),  // Extremely subtle
+                  const Color(0xFF87AAA2).withValues(alpha: 0.22),
                 ],
                 stops: const [0.0, 1.0],
               ),
@@ -442,45 +1330,6 @@ class _FullScreenBackgroundImage extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _UShapedClipper extends CustomClipper<Path> {
-  final double imageHeight;
-  
-  _UShapedClipper(this.imageHeight);
-
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    final width = size.width;
-    
-    // Start at top-left
-    path.lineTo(0.0, 0.0);
-    path.lineTo(width, 0.0);
-    path.lineTo(width, imageHeight * 0.7); // Straight down to 70% of image
-    
-    // Bottom-right curve (quadratic Bezier for smooth U shape)
-    final curveControlX = width;
-    final curveControlY = imageHeight;
-    final curveEndX = width * 0.5; // Center
-    final curveEndY = imageHeight * 0.95;
-    
-    path.quadraticBezierTo(curveControlX, curveControlY, curveEndX, curveEndY);
-    
-    // Bottom-left curve (quadratic Bezier mirror)
-    final curveControlX2 = 0.0;
-    final curveControlY2 = imageHeight;
-    
-    path.quadraticBezierTo(curveControlX2, curveControlY2, 0.0, imageHeight * 0.7);
-    
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(_UShapedClipper oldClipper) {
-    return oldClipper.imageHeight != imageHeight;
   }
 }
 
