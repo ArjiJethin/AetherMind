@@ -36,8 +36,8 @@ class _JournalTestScreenState extends State<JournalTestScreen> {
       return;
     }
 
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please sign in first.')),
       );
@@ -50,7 +50,7 @@ class _JournalTestScreenState extends State<JournalTestScreen> {
     try {
       print('STEP 1: Calling createJournal');
     final saved = await _journalController
-      .createJournal(userId, text)
+      .createJournal(text)
           .timeout(const Duration(seconds: 12));
 
       print('STEP 2: createJournal result = $saved');
@@ -68,7 +68,7 @@ class _JournalTestScreenState extends State<JournalTestScreen> {
 
       print('STEP 3: Fetching report');
     final report = await _reportController
-      .getUserReport(userId)
+      .getUserReport()
           .timeout(const Duration(seconds: 12));
 
       print('STEP 4: Report fetched successfully');

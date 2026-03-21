@@ -13,7 +13,7 @@ class JournalController {
   final JournalService _service;
   final Uuid _uuid;
 
-  Future<bool> createJournal(String userId, String text) async {
+  Future<bool> createJournal(String text) async {
     try {
       print('CONTROLLER: Starting createJournal');
       final cleanText = text.trim();
@@ -21,11 +21,12 @@ class JournalController {
         return false;
       }
 
-      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-      if (currentUserId == null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
         print('CONTROLLER ERROR: No authenticated user');
         return false;
       }
+      print('Current UID: ${user.uid}');
 
       final id = _uuid.v4();
       final timestamp = DateTime.now();
@@ -42,7 +43,7 @@ class JournalController {
 
       final entry = JournalEntry(
         id: id,
-        userId: currentUserId,
+        userId: user.uid,
         text: cleanText,
         timestamp: timestamp,
         sentimentScore: sentiment,
@@ -56,7 +57,7 @@ class JournalController {
         processed: true,
       );
 
-      print('CONTROLLER: Saving to Firestore');
+  print('Saving journal for UID: ${user.uid}');
       await _service.saveJournal(entry);
       print('CONTROLLER: Save completed');
       print('Journal created: ${entry.id}');
@@ -67,12 +68,12 @@ class JournalController {
     }
   }
 
-  Future<List<JournalEntry>> fetchUserJournals(String userId) async {
-    return _service.getUserJournals(userId);
+  Future<List<JournalEntry>> fetchUserJournals() async {
+    return _service.getUserJournals();
   }
 
-  Future<List<JournalEntry>> fetchRecentJournals(String userId, int days) async {
-    return _service.getRecentJournals(userId, days);
+  Future<List<JournalEntry>> fetchRecentJournals(int days) async {
+    return _service.getRecentJournals(days);
   }
 
   Future<bool> deleteJournal(String id) async {

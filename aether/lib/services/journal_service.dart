@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/journal_entry.dart';
 
@@ -14,6 +15,7 @@ class JournalService {
   Future<void> saveJournal(JournalEntry entry) async {
     try {
       print('SERVICE: Writing to Firestore...');
+      print('Saving journal for UID: ${entry.userId}');
       final data = entry.toMap();
       data['timestamp'] = FieldValue.serverTimestamp();
       await _collection.doc(entry.id).set(data);
@@ -23,12 +25,18 @@ class JournalService {
     }
   }
 
-  Future<List<JournalEntry>> getUserJournals(String userId) async {
+  Future<List<JournalEntry>> getUserJournals() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print('SERVICE: No authenticated user for getUserJournals');
+        return <JournalEntry>[];
+      }
+      print('Current UID: ${user.uid}');
       // Note: Firestore may require a composite index for (user_id, timestamp).
       // If this query fails, the error message includes a link to create it.
       final snapshot = await _collection
-          .where('user_id', isEqualTo: userId)
+          .where('user_id', isEqualTo: user.uid)
           .orderBy('timestamp', descending: true)
           .limit(50)
           .get();
@@ -42,14 +50,20 @@ class JournalService {
     }
   }
 
-  Future<List<JournalEntry>> getRecentJournals(String userId, int days) async {
+  Future<List<JournalEntry>> getRecentJournals(int days) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print('SERVICE: No authenticated user for getRecentJournals');
+        return <JournalEntry>[];
+      }
+      print('Current UID: ${user.uid}');
       final cutoff = Timestamp.fromDate(
         DateTime.now().subtract(Duration(days: days)),
       );
 
       final snapshot = await _collection
-          .where('user_id', isEqualTo: userId)
+          .where('user_id', isEqualTo: user.uid)
           .where('timestamp', isGreaterThanOrEqualTo: cutoff)
           .orderBy('timestamp', descending: true)
           .get();

@@ -1,6 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+class AuthResult {
+  const AuthResult({required this.success, this.error, this.role});
+
+  final bool success;
+  final String? error;
+  final String? role;
+}
+
 class AuthService {
   AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
       : _auth = auth ?? FirebaseAuth.instance,
@@ -9,7 +17,33 @@ class AuthService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
-  Future<bool> registerGeneralUser({
+  String _mapAuthError(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'email-already-in-use':
+        return 'That email is already in use.';
+      case 'invalid-email':
+        return 'That email address is invalid.';
+      case 'operation-not-allowed':
+        return 'Email/password sign-in is disabled in Firebase.';
+      case 'weak-password':
+        return 'Password is too weak (min 6 characters).';
+      case 'network-request-failed':
+        return 'Network error. Check your connection and try again.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'user-not-found':
+        return 'No account found for that email.';
+      case 'wrong-password':
+        return 'Incorrect password.';
+      default:
+        final detail = (error.message == null || error.message!.isEmpty)
+            ? ''
+            : ' ${error.message}';
+        return 'Authentication failed (${error.code}).$detail';
+    }
+  }
+
+  Future<String?> registerGeneralUser({
     required String name,
     required String email,
     required String password,
@@ -21,7 +55,7 @@ class AuthService {
       );
       final uid = credential.user?.uid;
       if (uid == null) {
-        return false;
+        return 'Unable to create account. Please try again.';
       }
 
       await _firestore.collection('users').doc(uid).set({
@@ -31,14 +65,17 @@ class AuthService {
         'role': 'general_user',
         'created_at': FieldValue.serverTimestamp(),
       });
-      return true;
+      return null;
+    } on FirebaseAuthException catch (error) {
+      print('AUTH ERROR: $error');
+      return _mapAuthError(error);
     } catch (error) {
       print('AUTH ERROR: $error');
-      return false;
+      return error.toString();
     }
   }
 
-  Future<bool> registerProfessionalUser({
+  Future<String?> registerProfessionalUser({
     required String name,
     required String email,
     required String password,
@@ -51,7 +88,7 @@ class AuthService {
       );
       final uid = credential.user?.uid;
       if (uid == null) {
-        return false;
+        return 'Unable to create account. Please try again.';
       }
 
       await _firestore.collection('users').doc(uid).set({
@@ -62,14 +99,17 @@ class AuthService {
         'license_number': licenseNumber,
         'created_at': FieldValue.serverTimestamp(),
       });
-      return true;
+      return null;
+    } on FirebaseAuthException catch (error) {
+      print('AUTH ERROR: $error');
+      return _mapAuthError(error);
     } catch (error) {
       print('AUTH ERROR: $error');
-      return false;
+      return error.toString();
     }
   }
 
-  Future<String?> loginUser({
+  Future<AuthResult> loginUser({
     required String email,
     required String password,
   }) async {
@@ -80,14 +120,31 @@ class AuthService {
       );
       final uid = credential.user?.uid;
       if (uid == null) {
-        return null;
+        return const AuthResult(
+          success: false,
+          error: 'Login failed. Please try again.',
+        );
       }
       final snapshot = await _firestore.collection('users').doc(uid).get();
       final data = snapshot.data();
-      return data?['role'] as String?;
+      final role = data?['role'] as String?;
+      if (role == null) {
+        return const AuthResult(
+          success: false,
+          error: 'No role assigned to this account.',
+        );
+      }
+      return AuthResult(success: true, role: role);
+    } on FirebaseAuthException catch (error) {
+      return AuthResult(
+        success: false,
+        error: _mapAuthError(error),
+      );
     } catch (error) {
-      print('AUTH ERROR: $error');
-      return null;
+      return const AuthResult(
+        success: false,
+        error: 'Login failed. Please try again.',
+      );
     }
   }
 }

@@ -1020,7 +1020,7 @@ class _SignUpFormState extends State<_SignUpForm> {
                 _isLoading = true;
               });
 
-              final success = await _authService.registerGeneralUser(
+              final error = await _authService.registerGeneralUser(
                 name: _nameController.text.trim(),
                 email: _emailController.text.trim(),
                 password: _passwordController.text,
@@ -1034,13 +1034,15 @@ class _SignUpFormState extends State<_SignUpForm> {
                 _isLoading = false;
               });
 
-              if (success) {
+              if (error == null) {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const HomeScreen()),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Failed to create account.')),
+                  SnackBar(
+                    content: Text('Error: $error'),
+                  ),
                 );
               }
             },
@@ -1150,7 +1152,7 @@ class _LoginFormState extends State<_LoginForm> {
                 _isLoading = true;
               });
 
-              final role = await _authService.loginUser(
+              final result = await _authService.loginUser(
                 email: _emailController.text.trim(),
                 password: _passwordController.text,
               );
@@ -1163,14 +1165,16 @@ class _LoginFormState extends State<_LoginForm> {
                 _isLoading = false;
               });
 
-              if (role == null) {
+              if (!result.success) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Login failed.')),
+                  SnackBar(
+                    content: Text(result.error ?? 'Login failed.'),
+                  ),
                 );
                 return;
               }
 
-              if (role == 'psychiatrist') {
+              if (result.role == 'psychiatrist') {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const PsychiatristScreen()),
                 );
@@ -1318,7 +1322,7 @@ class _ProfessionalFormState extends State<_ProfessionalForm> {
                 _isLoading = true;
               });
 
-              final success = await _authService.registerProfessionalUser(
+              final error = await _authService.registerProfessionalUser(
                 name: _nameController.text.trim(),
                 email: _emailController.text.trim(),
                 password: _passwordController.text,
@@ -1333,13 +1337,13 @@ class _ProfessionalFormState extends State<_ProfessionalForm> {
                 _isLoading = false;
               });
 
-              if (success) {
+              if (error == null) {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const PsychiatristScreen()),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Professional login failed.')),
+                  SnackBar(content: Text('Error: $error')),
                 );
               }
             },
