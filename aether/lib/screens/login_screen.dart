@@ -1,4 +1,5 @@
 import 'dart:ui' show ImageFilter, clampDouble;
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -74,13 +75,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       precacheImage(
-        const AssetImage('assets/imgs/intro-bg.png'),
-        context,
-      ).catchError((e) {
-        debugPrint('Failed to precache intro-bg.png: $e');
-      });
-      precacheImage(
-        const AssetImage('assets/imgs/intro-page-pet.png'),
+        const AssetImage('assets/imgs/intro-p-pet.png'),
         context,
       ).catchError((e) {
         debugPrint('Failed to precache intro-page-pet.png: $e');
@@ -165,7 +160,10 @@ class _LoginScreenState extends State<LoginScreen>
       builder: (BuildContext context) => AlertDialog(
         title: Text(
           title,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+          ),
         ),
         content: SingleChildScrollView(
           child: Text(content, style: GoogleFonts.inter()),
@@ -180,6 +178,16 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  TextStyle _buildBrandTitleStyle(double titleSize) {
+    return TextStyle(
+      fontFamily: 'Doto',
+      fontSize: titleSize,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -0.2,
+      color: const Color(0xFF244A44),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
@@ -190,92 +198,95 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_backgroundBottom, _backgroundMid, _backgroundTop],
-          ),
-        ),
-        child: Stack(
+      body: Stack(
+        children: [
+          const Positioned.fill(child: _AnimatedTopBottomGradient()),
+          Stack(
           children: [
-            // Background image with fade overlay
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SizedBox(
-                height: screenHeight * 0.5,
-                child: const _FullScreenBackgroundImage(),
-              ),
-            ),
-
             // Ambient decorations
             const Positioned.fill(child: _AmbientBackdrop()),
-
-            // Very soft readability transition around the split.
-            const Positioned.fill(child: _MidScreenReadabilityGradient()),
 
             if (_currentScreen == 'main')
               SafeArea(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
-                    final petSize = clampDouble(width * 1.3, 400, 580);
-                    final titleSize = clampDouble(width * 0.075, 29, 37);
-                    final bodySize = clampDouble(width * 0.033, 13, 14.5);
+                    final titleSize = clampDouble(width * 0.09, 28, 32);
+                    final subtitleSize = clampDouble(width * 0.042, 14, 16);
+                    final bodySize = clampDouble(width * 0.033, 12.5, 13.2);
                     final buttonHeight = clampDouble(
                       constraints.maxHeight * 0.075,
+                      52,
                       56,
-                      60,
                     );
-
-                    final bgImageHeight = screenHeight * 0.5;
-                    final topSectionHeight = bgImageHeight - mediaQuery.padding.top;
+                    final petFrameHeight = clampDouble(
+                      constraints.maxHeight * 0.34,
+                      224,
+                      310,
+                    );
+                    final petSize = clampDouble(width * 1.06, 330, 460);
+                    final horizontalPadding = clampDouble(width * 0.06, 20, 24);
+                    final safeBottom = mediaQuery.padding.bottom;
 
                     return Stack(
                       children: [
                         Positioned(
-                          top: 0,
+                          top: clampDouble(constraints.maxHeight * 0.055, 34, 54),
+                          left: 20,
+                          right: 20,
+                          child: Column(
+                            children: [
+                              Text(
+                                'AETHER',
+                                textAlign: TextAlign.center,
+                                style: _buildBrandTitleStyle(titleSize),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'Aether grows with you\nthrough every small step',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.38,
+                                  color: const Color.fromARGB(255, 69, 123, 113),
+                                  shadows: const [
+                                    Shadow(
+                                      color: Color(0x66121816),
+                                      offset: Offset(0, 1),
+                                      blurRadius: 0,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          top: constraints.maxHeight * 0.29,
                           left: 0,
                           right: 0,
-                          child: SizedBox(
-                            height: topSectionHeight,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  height: petSize * 0.5,
-                                  child: _PetOverlay(
-                                    petSize: petSize,
-                                    floatOffset: _floatOffset,
-                                    glowStrength: _glowStrength,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: clampDouble(width * 0.1, 22, 40),
-                                  ),
-                                  child: Text(
-                                    'Aether grows with you, one step at a time.',
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: titleSize,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.35,
-                                      letterSpacing: -0.3,
-                                      color: _softWhite.withValues(alpha: 0.92),
+                          child: Center(
+                            child: SizedBox(
+                              height: petFrameHeight,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    height: petFrameHeight,
+                                    child: _PetOverlay(
+                                      petSize: petSize,
+                                      floatOffset: _floatOffset,
+                                      glowStrength: _glowStrength,
                                     ),
                                   ),
+                                ],
                                 ),
-                              ],
                             ),
                           ),
                         ),
                         Positioned(
-                          top: bgImageHeight,
                           left: 0,
                           right: 0,
                           bottom: 0,
@@ -284,14 +295,100 @@ class _LoginScreenState extends State<LoginScreen>
                               topLeft: Radius.circular(30),
                               topRight: Radius.circular(30),
                             ),
-                            child: _BottomAttachedMainPanel(
-                              buttonHeight: buttonHeight,
-                              bodySize: bodySize,
-                              onStartJourney: _handleStartJourney,
-                              onExistingAccount: _handleExistingAccount,
-                              privacyRecognizer: _privacyRecognizer,
-                              termsRecognizer: _termsRecognizer,
-                              psychiatristRecognizer: _psychiatristRecognizer,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDDE7E1),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.24),
+                                    const Color(0xFFDDE7E1),
+                                  ],
+                                  stops: const [0.0, 0.24],
+                                ),
+                              ),
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  horizontalPadding,
+                                  22,
+                                  horizontalPadding,
+                                  22 + safeBottom,
+                                ),
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 450),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        _PrimaryActionButton(
+                                          height: buttonHeight,
+                                          onTap: _handleStartJourney,
+                                        ),
+                                        const SizedBox(height: 14),
+                                        _SecondaryActionButton(
+                                          height: buttonHeight,
+                                          onTap: _handleExistingAccount,
+                                        ),
+                                        const SizedBox(height: 20),
+                                        Text.rich(
+                                          TextSpan(
+                                            style: TextStyle(
+                                              fontFamily: 'Poppins',
+                                              fontSize: bodySize,
+                                              height: 1.55,
+                                              color: const Color(0xFF365A54).withValues(alpha: 0.72),
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                            children: [
+                                              const TextSpan(
+                                                text: 'By continuing, you agree to our ',
+                                              ),
+                                              TextSpan(
+                                                text: 'Privacy Policy',
+                                                recognizer: _privacyRecognizer,
+                                                style: TextStyle(
+                                                  fontFamily: 'Poppins',
+                                                  fontSize: bodySize,
+                                                  height: 1.55,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: const Color(0xFF274A45).withValues(alpha: 0.92),
+                                                ),
+                                              ),
+                                              const TextSpan(text: ' and '),
+                                              TextSpan(
+                                                text: 'Terms of Service',
+                                                recognizer: _termsRecognizer,
+                                                style: TextStyle(
+                                                  fontFamily: 'Poppins',
+                                                  fontSize: bodySize,
+                                                  height: 1.55,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: const Color(0xFF274A45).withValues(alpha: 0.92),
+                                                ),
+                                              ),
+                                              const TextSpan(text: '. Are you a '),
+                                              TextSpan(
+                                                text: 'professional?',
+                                                recognizer: _psychiatristRecognizer,
+                                                style: TextStyle(
+                                                  fontFamily: 'Poppins',
+                                                  fontSize: bodySize,
+                                                  height: 1.55,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: const Color(0xFF274A45).withValues(alpha: 0.92),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -336,34 +433,118 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ),
             if (_currentScreen != 'main')
-              Positioned(
-                top: screenHeight * 0.5,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: FadeTransition(
-                  opacity: screenTransition,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.08),
-                      end: Offset.zero,
-                    ).animate(screenTransition),
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30),
-                      ),
-                      child: _BottomAttachedAuthForm(
-                        currentScreen: _currentScreen,
-                        onBack: _backToMainScreen,
+              AnimatedBuilder(
+                animation: screenTransition,
+                builder: (context, child) {
+                  final t = screenTransition.value;
+                  final top = (screenHeight * 0.72) - ((screenHeight * 0.22) * t);
+
+                  return Positioned(
+                    top: top,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Opacity(
+                      opacity: 0.84 + (t * 0.16),
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(30),
+                          topRight: Radius.circular(30),
+                        ),
+                        child: _BottomAttachedAuthForm(
+                          currentScreen: _currentScreen,
+                          onBack: _backToMainScreen,
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
           ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _AnimatedTopBottomGradient extends StatefulWidget {
+  const _AnimatedTopBottomGradient();
+
+  @override
+  State<_AnimatedTopBottomGradient> createState() => _AnimatedTopBottomGradientState();
+}
+
+class _AnimatedTopBottomGradientState extends State<_AnimatedTopBottomGradient>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 12000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final phase = math.sin(_controller.value * 2 * math.pi);
+        final drift = phase * 0.09;
+        final crest = (0.70 - drift).clamp(0.58, 0.78);
+
+        return Stack(
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFF7FFFB),
+                    _LoginScreenState._backgroundTop,
+                    _LoginScreenState._backgroundMid,
+                    _LoginScreenState._backgroundBottom,
+                  ],
+                  stops: [0.0, 0.42, 0.78, 1.0],
+                ),
+              ),
+              child: SizedBox.expand(),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    const Color(0xFFFFFFFF).withValues(alpha: 0.055),
+                    const Color(0xFF6D928B).withValues(alpha: 0.07),
+                    Colors.transparent,
+                  ],
+                  stops: [
+                    (crest - 0.22).clamp(0.0, 1.0),
+                    (crest - 0.08).clamp(0.0, 1.0),
+                    (crest + 0.08).clamp(0.0, 1.0),
+                    (crest + 0.24).clamp(0.0, 1.0),
+                  ],
+                ),
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -436,82 +617,96 @@ class _BottomAttachedAuthForm extends StatelessWidget {
               .clamp(20.0, 36.0)
               .toDouble();
 
-          return Stack(
-            children: [
-              SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      horizontalPadding,
-                      balancedInset,
-                      horizontalPadding,
-                      balancedInset + safeBottom,
-                    ),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 450),
-                        child: currentScreen == 'signup'
-                            ? _SignUpForm(
-                                titleSize: titleSize,
-                                bodySize: bodySize,
-                                buttonHeight: buttonHeight,
-                                onBack: onBack,
-                              )
-                            : currentScreen == 'login'
-                            ? _LoginForm(
-                                titleSize: titleSize,
-                                bodySize: bodySize,
-                                buttonHeight: buttonHeight,
-                                onBack: onBack,
-                              )
-                            : _ProfessionalForm(
-                                titleSize: titleSize,
-                                bodySize: bodySize,
-                                buttonHeight: buttonHeight,
-                                onBack: onBack,
-                              ),
+          return Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFDDE7E1),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withValues(alpha: 0.24),
+                  const Color(0xFFDDE7E1),
+                ],
+                stops: const [0.0, 0.24],
+              ),
+            ),
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        horizontalPadding,
+                        balancedInset,
+                        horizontalPadding,
+                        balancedInset + safeBottom,
+                      ),
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 450),
+                          child: currentScreen == 'signup'
+                              ? _SignUpForm(
+                                  titleSize: titleSize,
+                                  bodySize: bodySize,
+                                  buttonHeight: buttonHeight,
+                                  onBack: onBack,
+                                )
+                              : currentScreen == 'login'
+                              ? _LoginForm(
+                                  titleSize: titleSize,
+                                  bodySize: bodySize,
+                                  buttonHeight: buttonHeight,
+                                  onBack: onBack,
+                                )
+                              : _ProfessionalForm(
+                                  titleSize: titleSize,
+                                  bodySize: bodySize,
+                                  buttonHeight: buttonHeight,
+                                  onBack: onBack,
+                                ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: IgnorePointer(
-                  child: Container(
-                    height: 64,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.11),
-                          Colors.white.withValues(alpha: 0.03),
-                          Colors.transparent,
-                        ],
-                        stops: const [0.0, 0.45, 1.0],
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 64,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.11),
+                            Colors.white.withValues(alpha: 0.03),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: IgnorePointer(
-                  child: Container(
-                    height: 1,
-                    color: Colors.white.withValues(alpha: 0.14),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.14),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -677,7 +872,7 @@ class _AuthFormHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const softWhite = Color(0xFFF7FFFB);
+    const headerColor = Color(0xFF315A53);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -686,7 +881,7 @@ class _AuthFormHeader extends StatelessWidget {
           onTap: onBack,
           child: Icon(
             Icons.arrow_back,
-            color: softWhite.withValues(alpha: 0.85),
+            color: headerColor.withValues(alpha: 0.82),
             size: 22,
           ),
         ),
@@ -694,10 +889,12 @@ class _AuthFormHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: GoogleFonts.poppins(
+            style: TextStyle(
+              fontFamily: 'Doto',
               fontSize: titleSize * 0.76,
-              fontWeight: FontWeight.w600,
-              color: softWhite,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.15,
+              color: headerColor,
             ),
           ),
         ),
@@ -723,48 +920,52 @@ class _AuthInputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const softWhite = Color(0xFFF7FFFB);
+    const fieldText = Color(0xFF3D6760);
+    const fieldLabel = Color(0xFF6D8D87);
+    const fieldFill = Color(0xFFEFF6F3);
+    const fieldBorder = Color(0xFFC5D7D1);
+    const fieldFocus = Color(0xFF8EB2AB);
 
     return SizedBox(
-      height: 50,
+      height: 56,
       child: TextFormField(
         controller: controller,
         obscureText: obscureText,
         validator: validator,
-        style: GoogleFonts.inter(
+        style: TextStyle(
+          fontFamily: 'Poppins',
           fontSize: bodySize * 0.93,
-          color: softWhite,
+          color: fieldText,
           fontWeight: FontWeight.w400,
+          height: 1.2,
         ),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: GoogleFonts.inter(
+          labelStyle: TextStyle(
+            fontFamily: 'Poppins',
             fontSize: bodySize * 0.88,
-            color: softWhite.withValues(alpha: 0.62),
+            color: fieldLabel,
             fontWeight: FontWeight.w400,
+            height: 1.2,
+          ),
+          floatingLabelStyle: const TextStyle(
+            fontFamily: 'Poppins',
+            color: Color(0xFF729891),
+            fontWeight: FontWeight.w500,
           ),
           filled: true,
-          fillColor: softWhite.withValues(alpha: 0.035),
+          fillColor: fieldFill,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: softWhite.withValues(alpha: 0.22),
-              width: 1,
-            ),
+            borderSide: const BorderSide(color: fieldBorder, width: 1),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: softWhite.withValues(alpha: 0.22),
-              width: 1,
-            ),
+            borderSide: const BorderSide(color: fieldBorder, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: softWhite.withValues(alpha: 0.45),
-              width: 1.2,
-            ),
+            borderSide: const BorderSide(color: fieldFocus, width: 1.3),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
@@ -780,7 +981,7 @@ class _AuthInputField extends StatelessWidget {
               width: 1.2,
             ),
           ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(vertical: 17, horizontal: 16),
           isDense: true,
         ),
       ),
@@ -805,6 +1006,8 @@ class _AuthSubmitButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const submitTextColor = Color(0xFFE8F4F1);
+
     return SizedBox(
       height: height,
       child: Material(
@@ -816,9 +1019,18 @@ class _AuthSubmitButton extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF3A8B81), Color(0xFF2A6560)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF4D9489), Color(0xFF3B7F75)],
               ),
               borderRadius: BorderRadius.circular(14),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x243B7F75),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
             child: isLoading
                 ? const SizedBox(
@@ -831,10 +1043,12 @@ class _AuthSubmitButton extends StatelessWidget {
                   )
                 : Text(
                     text,
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
                       fontSize: bodySize * 1.05,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      letterSpacing: 0.2,
+                      color: submitTextColor,
                     ),
                   ),
           ),
@@ -1510,7 +1724,7 @@ class _PetOverlayState extends State<_PetOverlay>
                   children: [
                     // Pet image
                     Image.asset(
-                      'assets/imgs/intro-page-pet.png',
+                      'assets/imgs/new-pet.png',
                       width: widget.petSize,
                       fit: BoxFit.contain,
                     ),
@@ -1575,11 +1789,12 @@ class _PrimaryActionButton extends StatelessWidget {
                 child: Center(
                   child: Text(
                     'Start Journey',
-                    style: GoogleFonts.inter(
+                    style: const TextStyle(
+                      fontFamily: 'Doto',
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.1,
-                      color: Colors.white.withValues(alpha: 0.96),
+                      color: Color(0xFFFFFFFF),
                     ),
                   ),
                 ),
@@ -1618,7 +1833,7 @@ class _SecondaryActionButton extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: const Color.fromARGB(255, 142, 192, 183).withValues(alpha: 0.1),
                     blurRadius: 16,
                     spreadRadius: 1,
                   ),
@@ -1627,10 +1842,11 @@ class _SecondaryActionButton extends StatelessWidget {
               child: Center(
                 child: Text(
                   'Already have an account?',
-                  style: GoogleFonts.inter(
+                  style: const TextStyle(
+                    fontFamily: 'Doto',
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.85),
+                    color: Color(0xFF2B7A63),
                   ),
                 ),
               ),
