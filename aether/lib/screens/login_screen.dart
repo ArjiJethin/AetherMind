@@ -805,41 +805,38 @@ class _AuthSubmitButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const softWhite = Color(0xFFF7FFFB);
-
     return SizedBox(
       height: height,
       child: Material(
-          onTap: isLoading ? null : onTap,
+        color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: isLoading ? null : onTap,
           borderRadius: BorderRadius.circular(14),
           child: Container(
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF3A8B81), Color(0xFF2A6560)],
               ),
               borderRadius: BorderRadius.circular(14),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(
-                      text,
-                      style: GoogleFonts.inter(
-                        fontSize: bodySize * 1.05,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                ),
-              ),
             ),
+            child: isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    text,
+                    style: GoogleFonts.inter(
+                      fontSize: bodySize * 1.05,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ),
