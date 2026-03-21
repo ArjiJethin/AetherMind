@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 
+import '../services/auth_service.dart';
+import 'home_screen.dart';
+import 'psychiatrist_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
@@ -790,12 +794,14 @@ class _AuthSubmitButton extends StatelessWidget {
     required this.bodySize,
     required this.height,
     required this.onTap,
+    this.isLoading = false,
   });
 
   final String text;
   final double bodySize;
   final double height;
   final VoidCallback onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -804,7 +810,7 @@ class _AuthSubmitButton extends StatelessWidget {
     return SizedBox(
       height: height,
       child: Material(
-        color: Colors.transparent,
+          onTap: isLoading ? null : onTap,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(14),
@@ -814,14 +820,23 @@ class _AuthSubmitButton extends StatelessWidget {
                 colors: [Color(0xFF3A8B81), Color(0xFF2A6560)],
               ),
               borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Text(
-                text,
-                style: GoogleFonts.inter(
-                  fontSize: bodySize * 1.05,
-                  fontWeight: FontWeight.w600,
-                  color: softWhite,
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      text,
+                      style: GoogleFonts.inter(
+                        fontSize: bodySize * 1.05,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                 ),
               ),
             ),
@@ -899,6 +914,8 @@ class _SignUpFormState extends State<_SignUpForm> {
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
   late TextEditingController _confirmPasswordController;
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -997,8 +1014,38 @@ class _SignUpFormState extends State<_SignUpForm> {
             text: 'Sign Up',
             bodySize: widget.bodySize,
             height: widget.buttonHeight,
-            onTap: () {
-              if (_formKey.currentState!.validate()) {}
+            isLoading: _isLoading,
+            onTap: () async {
+              if (!_formKey.currentState!.validate()) {
+                return;
+              }
+              setState(() {
+                _isLoading = true;
+              });
+
+              final success = await _authService.registerGeneralUser(
+                name: _nameController.text.trim(),
+                email: _emailController.text.trim(),
+                password: _passwordController.text,
+              );
+
+              if (!mounted) {
+                return;
+              }
+
+              setState(() {
+                _isLoading = false;
+              });
+
+              if (success) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to create account.')),
+                );
+              }
             },
           ),
         ),
@@ -1028,6 +1075,8 @@ class _LoginFormState extends State<_LoginForm> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -1095,8 +1144,44 @@ class _LoginFormState extends State<_LoginForm> {
             text: 'Login',
             bodySize: widget.bodySize,
             height: widget.buttonHeight,
-            onTap: () {
-              if (_formKey.currentState!.validate()) {}
+            isLoading: _isLoading,
+            onTap: () async {
+              if (!_formKey.currentState!.validate()) {
+                return;
+              }
+              setState(() {
+                _isLoading = true;
+              });
+
+              final role = await _authService.loginUser(
+                email: _emailController.text.trim(),
+                password: _passwordController.text,
+              );
+
+              if (!mounted) {
+                return;
+              }
+
+              setState(() {
+                _isLoading = false;
+              });
+
+              if (role == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Login failed.')),
+                );
+                return;
+              }
+
+              if (role == 'psychiatrist') {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const PsychiatristScreen()),
+                );
+              } else {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              }
             },
           ),
         ),
@@ -1128,6 +1213,8 @@ class _ProfessionalFormState extends State<_ProfessionalForm> {
   late TextEditingController _licenseController;
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -1225,8 +1312,39 @@ class _ProfessionalFormState extends State<_ProfessionalForm> {
             text: 'Verify & Login',
             bodySize: widget.bodySize,
             height: widget.buttonHeight,
-            onTap: () {
-              if (_formKey.currentState!.validate()) {}
+            isLoading: _isLoading,
+            onTap: () async {
+              if (!_formKey.currentState!.validate()) {
+                return;
+              }
+              setState(() {
+                _isLoading = true;
+              });
+
+              final success = await _authService.registerProfessionalUser(
+                name: _nameController.text.trim(),
+                email: _emailController.text.trim(),
+                password: _passwordController.text,
+                licenseNumber: _licenseController.text.trim(),
+              );
+
+              if (!mounted) {
+                return;
+              }
+
+              setState(() {
+                _isLoading = false;
+              });
+
+              if (success) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const PsychiatristScreen()),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Professional login failed.')),
+                );
+              }
             },
           ),
         ),

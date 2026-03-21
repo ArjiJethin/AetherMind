@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'journal_test_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -758,32 +760,44 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5).withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFE0E6ED).withOpacity(0.5),
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const JournalTestScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F5F5).withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFE0E6ED).withOpacity(0.5),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Write Now',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF5C6C7C),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Write Now',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF5C6C7C),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(
-                        Icons.arrow_forward,
-                        color: Color(0xFF5C6C7C),
-                        size: 16,
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.arrow_forward,
+                          color: Color(0xFF5C6C7C),
+                          size: 16,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
