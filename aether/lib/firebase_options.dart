@@ -44,49 +44,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBE7Y4O9B09FWxSuH80ny9bJ0khLCUmBbg',
-    appId: '1:435024515863:web:151a6f7ac6b835911d1d52',
-    messagingSenderId: '435024515863',
-    projectId: 'aether-base-6741a',
-    authDomain: 'aether-base-6741a.firebaseapp.com',
-    storageBucket: 'aether-base-6741a.firebasestorage.app',
-    measurementId: 'G-TXXRP3MXJS',
+    apiKey: 'AIzaSyBmBaj1OyqdWZhppuL2cN_IcPGx7w8D9JU',
+    appId: '1:261489663966:web:7f01f0a734a3856c2b074f',
+    messagingSenderId: '261489663966',
+    projectId: 'aether-base-b702c',
+    authDomain: 'aether-base-b702c.firebaseapp.com',
+    storageBucket: 'aether-base-b702c.firebasestorage.app',
+    measurementId: 'G-NT18H240XB',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyASBsvD7bjzKUp2XW8u4kJes-N_B3Fx4WQ',
-    appId: '1:435024515863:android:cad7112c2c8129b81d1d52',
-    messagingSenderId: '435024515863',
-    projectId: 'aether-base-6741a',
-    storageBucket: 'aether-base-6741a.firebasestorage.app',
+    apiKey: 'AIzaSyAuS2amdBnl2BWRxjUi5WHIZh6JErucP1U',
+    appId: '1:261489663966:android:8d1b3a130cc7f6272b074f',
+    messagingSenderId: '261489663966',
+    projectId: 'aether-base-b702c',
+    storageBucket: 'aether-base-b702c.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCV9mkvJzQIoRNKVeRR7FiJpxzYGObpe5s',
-    appId: '1:435024515863:ios:1c8c81353787df8d1d1d52',
-    messagingSenderId: '435024515863',
-    projectId: 'aether-base-6741a',
-    storageBucket: 'aether-base-6741a.firebasestorage.app',
+    apiKey: 'AIzaSyAiB9YzcPnTGlCQw__vKBhGGt9G0KZq_Is',
+    appId: '1:261489663966:ios:398d6700d6e96cf92b074f',
+    messagingSenderId: '261489663966',
+    projectId: 'aether-base-b702c',
+    storageBucket: 'aether-base-b702c.firebasestorage.app',
     iosBundleId: 'com.example.aether',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCV9mkvJzQIoRNKVeRR7FiJpxzYGObpe5s',
-    appId: '1:435024515863:ios:1c8c81353787df8d1d1d52',
-    messagingSenderId: '435024515863',
-    projectId: 'aether-base-6741a',
-    storageBucket: 'aether-base-6741a.firebasestorage.app',
+    apiKey: 'AIzaSyAiB9YzcPnTGlCQw__vKBhGGt9G0KZq_Is',
+    appId: '1:261489663966:ios:398d6700d6e96cf92b074f',
+    messagingSenderId: '261489663966',
+    projectId: 'aether-base-b702c',
+    storageBucket: 'aether-base-b702c.firebasestorage.app',
     iosBundleId: 'com.example.aether',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBE7Y4O9B09FWxSuH80ny9bJ0khLCUmBbg',
-    appId: '1:435024515863:web:50aa05a72df4584b1d1d52',
-    messagingSenderId: '435024515863',
-    projectId: 'aether-base-6741a',
-    authDomain: 'aether-base-6741a.firebaseapp.com',
-    storageBucket: 'aether-base-6741a.firebasestorage.app',
-    measurementId: 'G-T5236BX1QH',
+    apiKey: 'AIzaSyBmBaj1OyqdWZhppuL2cN_IcPGx7w8D9JU',
+    appId: '1:261489663966:web:239a34fc7bd26e712b074f',
+    messagingSenderId: '261489663966',
+    projectId: 'aether-base-b702c',
+    authDomain: 'aether-base-b702c.firebaseapp.com',
+    storageBucket: 'aether-base-b702c.firebasestorage.app',
+    measurementId: 'G-9K3B8CHFZX',
   );
 
 }
