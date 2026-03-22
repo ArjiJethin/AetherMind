@@ -14,6 +14,10 @@ class JournalParser {
     'love',
     'proud',
     'confident',
+    'content',
+    'satisfied',
+    'motivated',
+    'energetic',
   ];
 
   static const List<String> _negativeWords = [
@@ -34,13 +38,18 @@ class JournalParser {
     'fear',
     'bad',
     'terrible',
+    'drained',
+    'burning',
+    'lost',
+    'confused',
+    'pressured',
   ];
 
   static const Map<String, List<String>> _triggerKeywords = {
     'academic': ['exam', 'school', 'class', 'grades', 'homework', 'college'],
     'work': ['job', 'boss', 'deadline', 'meeting', 'office', 'work'],
     'social': ['friends', 'family', 'relationship', 'party', 'social'],
-    'health': ['sick', 'ill', 'doctor', 'pain', 'health', 'sleep'],
+    'health': ['sick', 'ill', 'doctor', 'pain', 'health', 'sleep', 'insomnia', 'fatigue'],
   };
 
   static const Map<String, List<String>> _stressKeywords = {
@@ -48,6 +57,7 @@ class JournalParser {
     'burnout': ['burnout', 'burned out', 'burnt out'],
     'exhausted': ['exhausted', 'drained', 'fatigued'],
     'hopeless': ['hopeless', 'helpless', 'no way out'],
+    'pressure': ['deadline', 'pressure', 'burden', 'overthinking'],
   };
 
   static const List<String> _overgeneralizationWords = ['always', 'never'];
@@ -60,6 +70,15 @@ class JournalParser {
     'barely',
   ];
 
+  static const Map<String, double> _intensityModifiers = {
+    'very': 1.5,
+    'extremely': 2.0,
+    'slightly': 0.5,
+    'a bit': 0.7,
+  };
+
+  static const List<String> _contrastWords = ['but', 'however'];
+
   static double getSentiment(String text) {
     final normalized = _normalize(text);
     if (normalized.isEmpty) {
@@ -70,66 +89,170 @@ class JournalParser {
       'overwhelmed': -2,
       'hopeless': -2,
       'exhausted': -2,
+      'stressed': -2,
+      'anxious': -2,
     };
     const mildNegative = {
       'sad': -1,
       'bad': -1,
       'tired': -1,
+      'drained': -1,
     };
     const strongPositive = {
       'amazing': 2,
       'great': 2,
       'happy': 2,
+      'motivated': 2,
+      'energetic': 2,
+      'better': 2,
+      'relieved': 2,
     };
     const mildPositive = {
       'okay': 1,
       'fine': 1,
+      'content': 1,
+      'satisfied': 1,
     };
     const phraseNegative = [
       'burnt out',
       'fed up',
       'worn out',
       'under pressure',
+      "i can't handle",
+      'too much to deal',
+      'falling apart',
+      'killing me',
+      'too much',
+      'cant handle',
+      'losing it',
+    ];
+    const phrasePositive = [
+      'feeling better',
+      'doing okay now',
+      'okay now',
+      'fine now',
     ];
 
-    final matches = <String, int>{};
-    final tokens = _tokenize(normalized);
+  final tokens = _tokenize(normalized);
+
+    final contrastIndex = _findContrastIndex(tokens);
+    final firstSegment = contrastIndex == -1 ? tokens : tokens.sublist(0, contrastIndex);
+    final secondSegment = contrastIndex == -1 ? <String>[] : tokens.sublist(contrastIndex + 1);
+
+    final firstScore = _scoreSegment(
+      firstSegment,
+      strongNegative: strongNegative,
+      mildNegative: mildNegative,
+      strongPositive: strongPositive,
+      mildPositive: mildPositive,
+      phraseNegative: phraseNegative,
+      phrasePositive: phrasePositive,
+      tokenCounts: _countTokens(firstSegment),
+    );
+
+    final secondScore = _scoreSegment(
+      secondSegment,
+      strongNegative: strongNegative,
+      mildNegative: mildNegative,
+      strongPositive: strongPositive,
+      mildPositive: mildPositive,
+      phraseNegative: phraseNegative,
+      phrasePositive: phrasePositive,
+      tokenCounts: _countTokens(secondSegment),
+    );
+
+    var score = contrastIndex == -1
+        ? firstScore
+        : ((firstScore * 0.4) + (secondScore * 1.0));
+
+    final stressWords = getStressKeywords(text);
+    if (score == 0 && stressWords.isNotEmpty) {
+      score = -0.3;
+    }
+    return score.clamp(-1.0, 1.0);
+  }
+
+  static double _scoreSegment(
+    List<String> tokens, {
+    required Map<String, int> strongNegative,
+    required Map<String, int> mildNegative,
+    required Map<String, int> strongPositive,
+    required Map<String, int> mildPositive,
+    required List<String> phraseNegative,
+    required List<String> phrasePositive,
+    required Map<String, int> tokenCounts,
+  }) {
+    if (tokens.isEmpty) {
+      return 0.0;
+    }
+
+    final matches = <String, double>{};
+    final anxietyWords = <String>{'stress', 'stressed', 'anxious', 'overwhelmed', 'pressure', 'deadline', 'burden', 'overthinking'};
+
     for (final phrase in phraseNegative) {
       final phraseTokens = _tokenize(phrase);
       final starts = _findPhraseStarts(tokens, phraseTokens);
       if (starts.isEmpty) {
         continue;
       }
-      final negated = starts.any((start) => _isNegatedWindow(start, tokens));
-      if (!negated) {
-        matches[phrase] = -2;
+      final repetitionMultiplier = 1 + ((starts.length - 1) * 0.3);
+      for (final start in starts) {
+        var adjusted = -2.0; // 1) base weight
+        if (_isNegatedWindow(start, tokens)) {
+          adjusted *= -1; // 2) negation invert
+        }
+        adjusted *= _getModifierMultiplier(start, tokens); // 3) modifier
+        adjusted *= repetitionMultiplier; // 4) repetition
+        matches['$phrase@$start'] = adjusted;
       }
     }
-    for (var i = 0; i < tokens.length; i++) {
-      final token = tokens[i];
-      if (matches.containsKey(token)) {
+
+    for (final phrase in phrasePositive) {
+      final phraseTokens = _tokenize(phrase);
+      final starts = _findPhraseStarts(tokens, phraseTokens);
+      if (starts.isEmpty) {
         continue;
       }
-      final weight = strongNegative[token] ??
+      final repetitionMultiplier = 1 + ((starts.length - 1) * 0.3);
+      for (final start in starts) {
+        var adjusted = 2.5;
+        if (_isNegatedWindow(start, tokens)) {
+          adjusted *= -1;
+        }
+        adjusted *= _getModifierMultiplier(start, tokens);
+        adjusted *= repetitionMultiplier;
+        matches['$phrase@$start'] = adjusted;
+      }
+    }
+
+    for (var i = 0; i < tokens.length; i++) {
+      final token = tokens[i];
+      var weight = strongNegative[token] ??
           mildNegative[token] ??
           strongPositive[token] ??
           mildPositive[token];
+
+      // Ensure stress/anxiety words always influence sentiment.
+      weight ??= anxietyWords.contains(token) ? -2 : null;
       if (weight == null) {
         continue;
       }
+
+      var adjusted = weight.toDouble(); // 1) base
       if (_isNegatedWindow(i, tokens)) {
-        continue;
+        adjusted *= -1; // 2) negation
       }
-      matches[token] = weight;
+      adjusted *= _getModifierMultiplier(i, tokens); // 3) modifier after weight assignment
+      final count = tokenCounts[token] ?? 1;
+      adjusted *= (1 + (count - 1) * 0.3); // 4) repetition
+      matches['$token@$i'] = adjusted;
     }
 
     if (matches.isEmpty) {
       return 0.0;
     }
-
-    final totalScore = matches.values.fold<int>(0, (sum, value) => sum + value);
-    final score = totalScore / matches.length;
-    return score.clamp(-1.0, 1.0);
+    final totalScore = matches.values.fold<double>(0, (sum, value) => sum + value);
+    return totalScore / matches.length;
   }
 
   static String getEmotion(String text) {
@@ -141,15 +264,21 @@ class JournalParser {
     const emotionGroups = <String, List<String>>{
       'anxiety': ['stress', 'stressed', 'overwhelmed', 'nervous', 'anxious'],
       'sadness': ['sad', 'down', 'hopeless'],
-      'joy': ['happy', 'great', 'good', 'relaxed'],
+      'joy': ['happy', 'great', 'good', 'relaxed', 'content', 'satisfied'],
+      'anger': ['angry', 'frustrated', 'irritated'],
+      'fear': ['scared', 'afraid', 'fear'],
+      'guilt': ['guilty', 'regret'],
+      'shame': ['ashamed', 'embarrassed'],
     };
 
     final tokens = _tokenize(normalized);
     var bestEmotion = 'neutral';
     var bestScore = 0;
+    var bestLastIndex = -1;
 
     emotionGroups.forEach((emotion, keywords) {
       var count = 0;
+      var lastIndex = -1;
       for (var i = 0; i < tokens.length; i++) {
         final token = tokens[i];
         if (!keywords.contains(token)) {
@@ -159,10 +288,12 @@ class JournalParser {
           continue;
         }
         count += 1;
+        lastIndex = i;
       }
-      if (count > bestScore) {
+      if (count > bestScore || (count == bestScore && lastIndex > bestLastIndex)) {
         bestScore = count;
         bestEmotion = emotion;
+        bestLastIndex = lastIndex;
       }
     });
 
@@ -174,28 +305,14 @@ class JournalParser {
     if (normalized.isEmpty) {
       return <String>['unknown'];
     }
-
-    const academicKeywords = [
-      'exam',
-      'exams',
-      'test',
-      'assignment',
-      'study',
-      'deadline',
-    ];
-    const workKeywords = ['work', 'job', 'boss', 'office', 'meeting'];
-    const socialKeywords = ['family', 'friends', 'relationship'];
-
+    final tokens = _tokenize(normalized);
     final triggers = <String>[];
-    if (academicKeywords.any(normalized.contains)) {
-      triggers.add('academic');
-    }
-    if (workKeywords.any(normalized.contains)) {
-      triggers.add('work');
-    }
-    if (socialKeywords.any(normalized.contains)) {
-      triggers.add('social');
-    }
+    _triggerKeywords.forEach((label, keywords) {
+      final match = keywords.any((keyword) => _matchesKeyword(tokens, keyword));
+      if (match) {
+        triggers.add(label);
+      }
+    });
 
     return triggers.isEmpty ? <String>['unknown'] : triggers;
   }
@@ -244,12 +361,27 @@ class JournalParser {
       'it',
     };
 
-    final tokens = _tokenize(text);
-    return tokens
+    const maxKeywords = 8;
+    final tokens = _tokenize(text)
         .where((word) => word.length > 4)
         .where((word) => !stopwords.contains(word))
-        .toSet()
         .toList();
+    if (tokens.isEmpty) {
+      return <String>[];
+    }
+    final counts = <String, int>{};
+    for (final token in tokens) {
+      counts[token] = (counts[token] ?? 0) + 1;
+    }
+    final sorted = counts.entries.toList()
+      ..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        if (byCount != 0) {
+          return byCount;
+        }
+        return a.key.compareTo(b.key);
+      });
+    return sorted.take(maxKeywords).map((entry) => entry.key).toList();
   }
 
   static List<String> getCognitivePatterns(String text) {
@@ -266,13 +398,61 @@ class JournalParser {
     return patterns;
   }
 
-  static int getIntensity(double sentiment) {
+  static int getIntensity(
+    double sentiment, {
+    int emotionalKeywordCount = 0,
+    int repetitionScore = 0,
+    double modifierImpact = 1.0,
+  }) {
     if (sentiment == 0) {
       return 3;
     }
-
-    final scaled = (sentiment.abs() * 10).round();
+    final base = sentiment.abs() * 8;
+    final keywordBoost = emotionalKeywordCount * 0.6;
+    final repetitionBoost = repetitionScore * 0.3;
+    final modifierBoost = (modifierImpact - 1).abs() * 2.5;
+    final scaled = (base + keywordBoost + repetitionBoost + modifierBoost).round();
     return scaled.clamp(1, 10);
+  }
+
+  static int getIntensityFromText(String text, double sentiment) {
+    final tokens = _tokenize(text);
+    if (tokens.isEmpty) {
+      return getIntensity(sentiment);
+    }
+
+    final tokenCounts = _countTokens(tokens);
+    final emotionVocabulary = <String>{
+      ..._positiveWords,
+      ..._negativeWords,
+    };
+
+    var emotionalKeywordCount = 0;
+    var repetitionScore = 0;
+    var modifierImpact = 1.0;
+
+    for (var i = 0; i < tokens.length; i++) {
+      final token = tokens[i];
+      if (!emotionVocabulary.contains(token)) {
+        continue;
+      }
+      emotionalKeywordCount += 1;
+      final count = tokenCounts[token] ?? 1;
+      if (count > 1) {
+        repetitionScore += (count - 1);
+      }
+      final modifier = _getModifierMultiplier(i, tokens);
+      if (modifier > modifierImpact) {
+        modifierImpact = modifier;
+      }
+    }
+
+    return getIntensity(
+      sentiment,
+      emotionalKeywordCount: emotionalKeywordCount,
+      repetitionScore: repetitionScore,
+      modifierImpact: modifierImpact,
+    );
   }
 
   static String getSentimentLabel(double score) {
@@ -294,6 +474,14 @@ class JournalParser {
         .toList();
   }
 
+  static Map<String, int> _countTokens(List<String> tokens) {
+    final counts = <String, int>{};
+    for (final token in tokens) {
+      counts[token] = (counts[token] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   static String _normalize(String text) {
     return text
         .toLowerCase()
@@ -312,6 +500,67 @@ class JournalParser {
       }
     }
     return false;
+  }
+
+  static int _findContrastIndex(List<String> tokens) {
+    for (var i = 0; i < tokens.length; i++) {
+      if (_contrastWords.contains(tokens[i])) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  static double _getContrastMultiplier(int index, int contrastIndex) {
+    if (contrastIndex == -1) {
+      return 1.0;
+    }
+    return index > contrastIndex ? 1.2 : 0.85;
+  }
+
+  static double _getModifierMultiplier(int index, List<String> tokens) {
+    if (index <= 0) {
+      return 1.0;
+    }
+    var multiplier = 1.0;
+    _intensityModifiers.forEach((phrase, value) {
+      final phraseTokens = _tokenize(phrase);
+      final start = index - phraseTokens.length;
+      if (start < 0) {
+        return;
+      }
+      var match = true;
+      for (var i = 0; i < phraseTokens.length; i++) {
+        if (tokens[start + i] != phraseTokens[i]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        multiplier = multiplier < value ? value : multiplier;
+      }
+    });
+    return multiplier;
+  }
+
+  static double _getRepetitionMultiplier(
+    String token,
+    Map<String, int> tokenCounts,
+  ) {
+    final baseToken = token.split(' ').first;
+    final count = tokenCounts[baseToken] ?? 1;
+    if (count <= 1) {
+      return 1.0;
+    }
+    return 1.0 + ((count - 1) * 0.3);
+  }
+
+  static bool _matchesKeyword(List<String> tokens, String keyword) {
+    final keywordTokens = _tokenize(keyword);
+    if (keywordTokens.length == 1) {
+      return tokens.contains(keywordTokens.first);
+    }
+    return _findPhraseStarts(tokens, keywordTokens).isNotEmpty;
   }
 
   static List<int> _findPhraseStarts(

@@ -59,10 +59,9 @@ class AuthService {
       }
 
       await _firestore.collection('users').doc(uid).set({
-        'id': uid,
         'name': name,
         'email': email,
-        'role': 'general_user',
+        'role': 'user',
         'created_at': FieldValue.serverTimestamp(),
       });
       return null;
@@ -92,7 +91,6 @@ class AuthService {
       }
 
       await _firestore.collection('users').doc(uid).set({
-        'id': uid,
         'name': name,
         'email': email,
         'role': 'psychiatrist',
@@ -146,5 +144,30 @@ class AuthService {
         error: 'Login failed. Please try again.',
       );
     }
+  }
+
+  Future<Map<String, dynamic>?> getUserProfile() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return null;
+    }
+
+    final snapshot = await _firestore.collection('users').doc(user.uid).get();
+    return snapshot.data();
+  }
+
+  Future<String?> getCurrentUserRole() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return null;
+    }
+
+    final snapshot = await _firestore.collection('users').doc(user.uid).get();
+    if (!snapshot.exists) {
+      return null;
+    }
+
+    final data = snapshot.data();
+    return data?['role'] as String?;
   }
 }

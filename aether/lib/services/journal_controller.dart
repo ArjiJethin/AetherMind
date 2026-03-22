@@ -13,18 +13,18 @@ class JournalController {
   final JournalService _service;
   final Uuid _uuid;
 
-  Future<bool> createJournal(String text) async {
+  Future<JournalEntry?> createJournal(String text) async {
     try {
       print('CONTROLLER: Starting createJournal');
       final cleanText = text.trim();
       if (cleanText.isEmpty) {
-        return false;
+        return null;
       }
 
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         print('CONTROLLER ERROR: No authenticated user');
-        return false;
+        return null;
       }
       print('Current UID: ${user.uid}');
 
@@ -38,7 +38,7 @@ class JournalController {
       final keywords = JournalParser.extractKeywords(cleanText);
       final stressKeywords = JournalParser.getStressKeywords(cleanText);
       final cognitivePatterns = JournalParser.getCognitivePatterns(cleanText);
-      final intensity = JournalParser.getIntensity(sentiment);
+  final intensity = JournalParser.getIntensityFromText(cleanText, sentiment);
       final sentimentLabel = JournalParser.getSentimentLabel(sentiment);
 
       final entry = JournalEntry(
@@ -61,10 +61,10 @@ class JournalController {
       await _service.saveJournal(entry);
       print('CONTROLLER: Save completed');
       print('Journal created: ${entry.id}');
-      return true;
+      return entry;
     } catch (error) {
       print('CONTROLLER ERROR: $error');
-      return false;
+      return null;
     }
   }
 

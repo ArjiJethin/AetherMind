@@ -1,9 +1,12 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'journal_test_screen.dart';
+import 'report_screen.dart';
+import '../services/report_controller.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +22,9 @@ class _HomeScreenState extends State<HomeScreen>
   static const _internalSpacing = 14.0;
 
   int _selectedNavIndex = 0;
+  bool _isLoading = false;
   late final AnimationController _shimmerController;
+  final ReportController _reportController = ReportController();
 
   @override
   void initState() {
@@ -72,6 +77,11 @@ class _HomeScreenState extends State<HomeScreen>
                           const SizedBox(height: 16),
                           const _TodayVibeCard(),
                           const SizedBox(height: _sectionSpacing),
+                          _HeroCheckInButton(
+                            isLoading: _isLoading,
+                            onTap: _handleCheckInNow,
+                          ),
+                          const SizedBox(height: _sectionSpacing),
                           _ProgressSection(shimmer: _shimmerController),
                           const SizedBox(height: _sectionSpacing),
                           _DailyJournalCard(
@@ -115,6 +125,52 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _handleCheckInNow() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in first.')),
+      );
+      return;
+    }
+  final currentUserId = user.uid;
+
+    setState(() => _isLoading = true);
+
+    try {
+  final report = await _reportController.getWeeklyReport(currentUserId);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (report.totalEntries == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No journal data for this week')),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReportScreen(report: report),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load weekly report')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }
 
@@ -372,7 +428,10 @@ class _TodayVibeCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const _HeroCheckInButton(),
+                      _HeroCheckInButton(
+                        isLoading: false,
+                        onTap: null,
+                      ),
                     ],
                   ),
                 ),
@@ -386,7 +445,10 @@ class _TodayVibeCard extends StatelessWidget {
 }
 
 class _HeroCheckInButton extends StatelessWidget {
-  const _HeroCheckInButton();
+  const _HeroCheckInButton({required this.onTap, required this.isLoading});
+
+  final VoidCallback? onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -412,7 +474,7 @@ class _HeroCheckInButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () {},
+          onTap: isLoading ? null : onTap,
           child: Stack(
             children: [
               Positioned.fill(
@@ -433,25 +495,34 @@ class _HeroCheckInButton extends StatelessWidget {
                 ),
               ),
               Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Check In Now',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                child: isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Check In Now',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),

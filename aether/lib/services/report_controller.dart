@@ -28,11 +28,14 @@ class ReportController {
     return report;
   }
 
-  Future<MentalHealthReport> getWeeklyReport() async {
+  Future<MentalHealthReport> getWeeklyReport([String? userId]) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       print('REPORT: No authenticated user');
   return _reportService.generateWeeklyReport(<JournalEntry>[]);
+    }
+    if (userId != null && userId != user.uid) {
+      print('REPORT: Ignoring mismatched userId argument and using current auth user');
     }
     print('Current UID: ${user.uid}');
     final journals = await _journalController.fetchUserJournals();
