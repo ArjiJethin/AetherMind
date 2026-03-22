@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/journal_controller.dart';
-import '../services/report_controller.dart';
+import '../services/report_service.dart';
 import 'report_screen.dart';
 
 class JournalTestScreen extends StatefulWidget {
@@ -17,7 +17,7 @@ class JournalTestScreen extends StatefulWidget {
 class _JournalTestScreenState extends State<JournalTestScreen> {
   final TextEditingController _controller = TextEditingController();
   final JournalController _journalController = JournalController();
-  final ReportController _reportController = ReportController();
+  final ReportService _reportService = ReportService();
   bool _isLoading = false;
 
   @override
@@ -49,27 +49,25 @@ class _JournalTestScreenState extends State<JournalTestScreen> {
     });
     try {
       print('STEP 1: Calling createJournal');
-    final saved = await _journalController
+    final entry = await _journalController
       .createJournal(text)
           .timeout(const Duration(seconds: 12));
 
-      print('STEP 2: createJournal result = $saved');
+      print('STEP 2: createJournal result = $entry');
 
       if (!mounted) {
         return;
       }
 
-      if (!saved) {
+      if (entry == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to save journal')),
         );
         return;
       }
 
-      print('STEP 3: Fetching report');
-    final report = await _reportController
-      .getUserReport()
-          .timeout(const Duration(seconds: 12));
+      print('STEP 3: Generating single-entry report');
+      final report = _reportService.generateSingleEntryReport(entry);
 
       print('STEP 4: Report fetched successfully');
 
