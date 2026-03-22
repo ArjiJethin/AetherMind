@@ -187,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen>
       body: Stack(
         children: [
           const Positioned.fill(
-            child: _AnimatedTopBottomGradient(animationSpeed: 1.45),
+            child: _AnimatedTopBottomGradient(animationSpeed: 3.4),
           ),
           Stack(
           children: [
@@ -379,6 +379,10 @@ class _LoginScreenState extends State<LoginScreen>
                 final petSize = lerpDouble(mainSize, formSize, transitionFactor) ?? mainSize;
 
                 final opacity = lerpDouble(1.0, 0.96, transitionFactor) ?? 1.0;
+                final petScale = 0.32;
+                final petContainerHeight = height * 0.75;
+                final rawPetSize = petSize * petScale;
+                final resolvedPetSize = math.min(rawPetSize, petContainerHeight);
 
                 return Positioned(
                   top: top,
@@ -388,8 +392,10 @@ class _LoginScreenState extends State<LoginScreen>
                     opacity: opacity,
                     child: Center(
                       child: SizedBox(
-                        height: height,
-                        child: AnimatedPet(petSize: petSize),
+                        height: petContainerHeight,
+                        child: Center(
+                          child: AnimatedPet(petSize: resolvedPetSize),
+                        ),
                       ),
                     ),
                   ),
@@ -1862,7 +1868,7 @@ class _FullScreenBackgroundImage extends StatelessWidget {
   }
 }
 
-class AnimatedPet extends StatefulWidget {
+class AnimatedPet extends StatelessWidget {
   const AnimatedPet({
     super.key,
     required this.petSize,
@@ -1871,124 +1877,13 @@ class AnimatedPet extends StatefulWidget {
   final double petSize;
 
   @override
-  State<AnimatedPet> createState() => _AnimatedPetState();
-}
-
-class _AnimatedPetState extends State<AnimatedPet>
-    with TickerProviderStateMixin {
-  static const _wingFrames = <String>[
-    'assets/imgs/new-pet-2.png', // wings up
-    'assets/imgs/new-pet.png', // neutral
-    'assets/imgs/new-pet-3.png', // wings down
-    'assets/imgs/new-pet.png', // neutral
-  ];
-
-  late final AnimationController _wingController;
-  late final AnimationController _floatController;
-  late final Animation<double> _floatOffset;
-
-  @override
-  void initState() {
-    super.initState();
-    _wingController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 720),
-    )..repeat();
-
-    _floatController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3200),
-    )..repeat(reverse: true);
-
-    _floatOffset = Tween<double>(begin: -30, end: -14).animate(
-      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
-    );
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      for (final frame in _wingFrames) {
-        precacheImage(AssetImage(frame), context);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _wingController.dispose();
-    _floatController.dispose();
-    super.dispose();
-  }
-
-  int _currentFrameIndex(double t) {
-    // Slightly longer hold on neutral frames for smoother RPG-like feel.
-    if (t < 0.20) return 0; // up
-    if (t < 0.50) return 1; // neutral
-    if (t < 0.70) return 2; // down
-    return 3; // neutral
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_wingController, _floatController]),
-      builder: (context, child) {
-        final frame = _wingFrames[_currentFrameIndex(_wingController.value)];
-        final floatDy = _floatOffset.value.roundToDouble();
-        final pixelSize = widget.petSize.roundToDouble();
-
-        final auraT = 0.5 + (0.5 * math.sin(_floatController.value * 2 * math.pi));
-        final ringScale = 1.0 + (auraT * 0.12);
-        final auraAlpha = 0.018 + (auraT * 0.016);
-        final ringAlpha = 0.010 + (auraT * 0.014);
-
-        return Transform.translate(
-          offset: Offset(0, floatDy),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              IgnorePointer(
-                child: Transform.scale(
-                  scale: ringScale,
-                  child: Container(
-                    width: pixelSize * 0.82,
-                    height: pixelSize * 0.82,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF9CCFC4).withValues(alpha: ringAlpha),
-                        width: 6,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              IgnorePointer(
-                child: Container(
-                  width: pixelSize * 0.72,
-                  height: pixelSize * 0.72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        const Color(0xFFBFE8DE).withValues(alpha: auraAlpha),
-                        const Color(0xFF8BC3B7).withValues(alpha: auraAlpha * 0.4),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.54, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-              Image.asset(
-                frame,
-                width: pixelSize,
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.none,
-                gaplessPlayback: true,
-              ),
-            ],
-          ),
-        );
-      },
+    return Image.asset(
+      'assets/imgs/new-pet.png',
+      height: petSize,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.none,
+      gaplessPlayback: true,
     );
   }
 }
