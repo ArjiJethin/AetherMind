@@ -1,4 +1,4 @@
-import 'dart:ui' show ImageFilter, clampDouble;
+import 'dart:ui' show ImageFilter, clampDouble, lerpDouble;
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -39,10 +39,7 @@ class _LoginScreenState extends State<LoginScreen>
   static const _buttonEnd = Color(0xFF184F4B);
   static const _softWhite = Color(0xFFF7FFFB);
 
-  late final AnimationController _controller;
   late final AnimationController _screenTransitionController;
-  late final Animation<double> _floatOffset;
-  late final Animation<double> _glowStrength;
   late final TapGestureRecognizer _privacyRecognizer;
   late final TapGestureRecognizer _termsRecognizer;
   TapGestureRecognizer? _psychiatristRecognizer;
@@ -53,40 +50,20 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2600),
-    )..repeat(reverse: true);
     _screenTransitionController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 650),
+      duration: const Duration(milliseconds: 980),
       value: 1,
-    );
-    _floatOffset = Tween<double>(begin: -30, end: -14).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    _glowStrength = Tween<double>(begin: 0.35, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
     _privacyRecognizer = TapGestureRecognizer()..onTap = _handlePrivacyPolicy;
     _termsRecognizer = TapGestureRecognizer()..onTap = _handleTermsOfService;
     _psychiatristRecognizer =
         TapGestureRecognizer()..onTap = _handlePsychiatristLogin;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      precacheImage(
-        const AssetImage('assets/imgs/intro-p-pet.png'),
-        context,
-      ).catchError((e) {
-        debugPrint('Failed to precache intro-page-pet.png: $e');
-      });
-    });
   }
 
   @override
   void dispose() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _controller.dispose();
     _screenTransitionController.dispose();
     _privacyRecognizer.dispose();
     _termsRecognizer.dispose();
@@ -99,13 +76,22 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
 
-    await _screenTransitionController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeInCubic,
-    );
+    // Back navigation should reverse the form sheet animation first,
+    // then swap to main to avoid an abrupt disappearance.
+    if (screen == 'main' && _currentScreen != 'main') {
+      await _screenTransitionController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 760),
+        curve: Curves.easeInOut,
+      );
 
-    if (!mounted) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _currentScreen = screen;
+      });
       return;
     }
 
@@ -200,7 +186,9 @@ class _LoginScreenState extends State<LoginScreen>
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: _AnimatedTopBottomGradient()),
+          const Positioned.fill(
+            child: _AnimatedTopBottomGradient(animationSpeed: 1.45),
+          ),
           Stack(
           children: [
             // Ambient decorations
@@ -219,12 +207,6 @@ class _LoginScreenState extends State<LoginScreen>
                       52,
                       56,
                     );
-                    final petFrameHeight = clampDouble(
-                      constraints.maxHeight * 0.34,
-                      224,
-                      310,
-                    );
-                    final petSize = clampDouble(width * 1.06, 330, 460);
                     final horizontalPadding = clampDouble(width * 0.06, 20, 24);
                     final safeBottom = mediaQuery.padding.bottom;
 
@@ -264,29 +246,6 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                         Positioned(
-                          top: constraints.maxHeight * 0.29,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: SizedBox(
-                              height: petFrameHeight,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    height: petFrameHeight,
-                                    child: _PetOverlay(
-                                      petSize: petSize,
-                                      floatOffset: _floatOffset,
-                                      glowStrength: _glowStrength,
-                                    ),
-                                  ),
-                                ],
-                                ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
                           left: 0,
                           right: 0,
                           bottom: 0,
@@ -297,15 +256,15 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFFDDE7E1),
+                                color: const Color(0xFFE4EEE9),
                                 gradient: LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.white.withValues(alpha: 0.24),
-                                    const Color(0xFFDDE7E1),
+                                  colors: const [
+                                    Color(0xFFF2F7F4),
+                                    Color(0xFFE4EEE9),
                                   ],
-                                  stops: const [0.0, 0.24],
+                                  stops: [0.0, 0.32],
                                 ),
                               ),
                               child: Padding(
@@ -397,41 +356,47 @@ class _LoginScreenState extends State<LoginScreen>
                   },
                 ),
               )
-            else
-              Positioned(
-                top: mediaQuery.padding.top,
-                left: 0,
-                right: 0,
-                child: SizedBox(
-                  height: (screenHeight * 0.5) - mediaQuery.padding.top,
-                  child: AnimatedBuilder(
-                    animation: screenTransition,
-                    builder: (context, child) {
-                      final t = screenTransition.value;
-                      return Opacity(
-                        opacity: 0.35 + (t * 0.65),
-                        child: Transform.translate(
-                          offset: Offset(0, (1 - t) * 44),
-                          child: Transform.scale(
-                            scale: 0.82 + (t * 0.18),
-                            child: child,
-                          ),
-                        ),
-                      );
-                    },
+            ,
+
+            AnimatedBuilder(
+              animation: screenTransition,
+              builder: (context, child) {
+                final transitionFactor = _currentScreen == 'main'
+                    ? 0.0
+                    : screenTransition.value;
+
+                final mainTop = screenHeight * 0.29;
+                final formTop = mediaQuery.padding.top +
+                    clampDouble(screenHeight * 0.01, 4, 12);
+                final top = lerpDouble(mainTop, formTop, transitionFactor) ?? mainTop;
+
+                final mainHeight = clampDouble(screenHeight * 0.4, 280, 380);
+                final formHeight = clampDouble(mediaQuery.size.width * 0.95, 230, 320);
+                final height = lerpDouble(mainHeight, formHeight, transitionFactor) ?? mainHeight;
+
+                final mainSize = clampDouble(mediaQuery.size.width * 1.22, 410, 600);
+                final formSize = clampDouble(mediaQuery.size.width * 1.2, 390, 560);
+                final petSize = lerpDouble(mainSize, formSize, transitionFactor) ?? mainSize;
+
+                final opacity = lerpDouble(1.0, 0.96, transitionFactor) ?? 1.0;
+
+                return Positioned(
+                  top: top,
+                  left: 0,
+                  right: 0,
+                  child: Opacity(
+                    opacity: opacity,
                     child: Center(
                       child: SizedBox(
-                        height: clampDouble(mediaQuery.size.width * 0.95, 230, 320),
-                        child: _PetOverlay(
-                          petSize: clampDouble(mediaQuery.size.width * 1.05, 300, 420),
-                          floatOffset: _floatOffset,
-                          glowStrength: _glowStrength,
-                        ),
+                        height: height,
+                        child: AnimatedPet(petSize: petSize),
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
+            ),
+
             if (_currentScreen != 'main')
               AnimatedBuilder(
                 animation: screenTransition,
@@ -469,7 +434,15 @@ class _LoginScreenState extends State<LoginScreen>
 }
 
 class _AnimatedTopBottomGradient extends StatefulWidget {
-  const _AnimatedTopBottomGradient();
+  const _AnimatedTopBottomGradient({
+    this.gridColumns,
+    this.animationSpeed = 1.0,
+    this.colorIntensity = 1.0,
+  });
+
+  final int? gridColumns;
+  final double animationSpeed;
+  final double colorIntensity;
 
   @override
   State<_AnimatedTopBottomGradient> createState() => _AnimatedTopBottomGradientState();
@@ -479,13 +452,27 @@ class _AnimatedTopBottomGradientState extends State<_AnimatedTopBottomGradient>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
+  Duration _durationForSpeed(double speed) {
+    final clamped = speed.clamp(0.5, 3.0);
+    return Duration(milliseconds: (12000 / clamped).round());
+  }
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 12000),
+      duration: _durationForSpeed(widget.animationSpeed),
     )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedTopBottomGradient oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animationSpeed != widget.animationSpeed) {
+      _controller.duration = _durationForSpeed(widget.animationSpeed);
+      _controller.repeat();
+    }
   }
 
   @override
@@ -496,57 +483,262 @@ class _AnimatedTopBottomGradientState extends State<_AnimatedTopBottomGradient>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final phase = math.sin(_controller.value * 2 * math.pi);
-        final drift = phase * 0.09;
-        final crest = (0.70 - drift).clamp(0.58, 0.78);
-
-        return Stack(
-          children: [
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFF7FFFB),
-                    _LoginScreenState._backgroundTop,
-                    _LoginScreenState._backgroundMid,
-                    _LoginScreenState._backgroundBottom,
-                  ],
-                  stops: [0.0, 0.42, 0.78, 1.0],
-                ),
-              ),
-              child: SizedBox.expand(),
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    const Color(0xFFFFFFFF).withValues(alpha: 0.055),
-                    const Color(0xFF6D928B).withValues(alpha: 0.07),
-                    Colors.transparent,
-                  ],
-                  stops: [
-                    (crest - 0.22).clamp(0.0, 1.0),
-                    (crest - 0.08).clamp(0.0, 1.0),
-                    (crest + 0.08).clamp(0.0, 1.0),
-                    (crest + 0.24).clamp(0.0, 1.0),
-                  ],
-                ),
-              ),
-              child: const SizedBox.expand(),
-            ),
-          ],
-        );
-      },
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: _PixelMosaicBackgroundPainter(
+          progress: _controller,
+          gridColumns: widget.gridColumns,
+          animationSpeed: widget.animationSpeed,
+          colorIntensity: widget.colorIntensity,
+        ),
+        child: const SizedBox.expand(),
+      ),
     );
   }
+}
+
+class _PixelMosaicBackgroundPainter extends CustomPainter {
+  _PixelMosaicBackgroundPainter({
+    required this.progress,
+    required this.gridColumns,
+    required this.animationSpeed,
+    required this.colorIntensity,
+  }) : super(repaint: progress);
+
+  final Animation<double> progress;
+
+  final int? gridColumns;
+  final double animationSpeed;
+  final double colorIntensity;
+  final Map<int, _CellMeta> _cellMetaCache = <int, _CellMeta>{};
+
+  static final Color _tealA =
+      const Color.fromRGBO(45, 114, 107, 1).withValues(alpha: 0.95);
+  static final Color _tealB =
+      const Color.fromRGBO(24, 79, 75, 1).withValues(alpha: 0.95);
+  static final Color _tealAccentA =
+      const Color.fromRGBO(92, 182, 165, 1).withValues(alpha: 0.92);
+  static final Color _tealAccentB =
+      const Color.fromRGBO(66, 153, 142, 1).withValues(alpha: 0.92);
+  static final Color _darkA =
+      const Color.fromRGBO(16, 45, 52, 1).withValues(alpha: 0.90);
+  static final Color _darkB =
+      const Color.fromRGBO(7, 28, 34, 1).withValues(alpha: 0.90);
+
+  double _hash01(int x, int y, [int salt = 0]) {
+    final n = math.sin((x * 127.1 + y * 311.7 + salt * 74.7).toDouble()) *
+        43758.5453123;
+    return n - n.floorToDouble();
+  }
+
+  _CellMeta _cellMeta(int col, int row) {
+    final key = (row * 4096) + col;
+    final cached = _cellMetaCache[key];
+    if (cached != null) {
+      return cached;
+    }
+
+    final meta = _CellMeta(
+      phase: _hash01(col, row, 11) * 2 * math.pi,
+      intensityVar: 0.10 + (_hash01(col, row, 12) * 0.20),
+      colorVar: (_hash01(col, row, 13) - 0.5) * 0.12,
+      darkVar: _hash01(col, row, 14),
+      starSeed: _hash01(col, row, 15),
+      starPhase: _hash01(col, row, 16),
+      starRate: 0.55 + (_hash01(col, row, 17) * 0.95),
+      starPower: 0.65 + (_hash01(col, row, 18) * 0.35),
+    );
+    _cellMetaCache[key] = meta;
+    return meta;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final time = progress.value;
+    final t = time * 2 * math.pi;
+    final cols = gridColumns?.clamp(26, 48) ??
+      ((size.width / 24).round().clamp(26, 48));
+    final cellW = size.width / cols;
+    final cellH = cellW;
+    final rows = (size.height / cellH).ceil() + 1;
+
+    // Top 20% remains clean white.
+    final bgPaint = Paint()..color = Colors.white;
+    canvas.drawRect(Offset.zero & size, bgPaint);
+
+    final topStart = size.height * 0.20;
+    final feather = size.height * 0.085;
+    final basinY = size.height * 0.60; // 40% from bottom
+
+    // A moving focal point drives the color shift so motion feels directional,
+    // not like all cells breathing in sync.
+    final focusX = size.width *
+      (0.20 + (0.60 * (0.5 + (0.5 * math.sin(t)))));
+    final focusY = topStart +
+      ((size.height - topStart) *
+        (0.22 + (0.56 * (0.5 + (0.5 * math.cos(t + 0.9))))));
+    final driftAngle = t + (math.sin((t * 2) + 0.7) * 0.16);
+    final driftX = math.cos(driftAngle);
+    final driftY = math.sin(driftAngle);
+    final lightX = math.cos(driftAngle - 0.7);
+    final lightY = math.sin(driftAngle - 0.7);
+    final depthSpan = (size.height - topStart).clamp(1.0, double.infinity);
+
+    final pixelPaint = Paint()..isAntiAlias = false;
+
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < cols; col++) {
+        final left = (col * cellW).roundToDouble();
+        final top = (row * cellH).roundToDouble();
+        final right = ((col + 1) * cellW).roundToDouble();
+        final bottom = ((row + 1) * cellH).roundToDouble();
+
+        final cx = (left + right) * 0.5;
+        final cy = (top + bottom) * 0.5;
+
+        if (cy < topStart - feather) {
+          continue;
+        }
+
+        final blendIn = ((cy - (topStart - feather)) / (feather * 2)).clamp(0.0, 1.0);
+        final topBlend = Curves.easeInOut.transform(blendIn);
+
+        final nx = (cx / size.width) - 0.5;
+        final uCurveY = basinY +
+            math.pow(nx.abs() * 1.9, 1.6) * size.height * 0.13;
+        final uDist = ((cy - uCurveY).abs() / (size.height * 0.22)).clamp(0.0, 1.0);
+        final uBand = 1.0 - Curves.easeInOut.transform(uDist);
+        final centerMask = math.exp(-math.pow(nx / 0.34, 2));
+        final hollow = (uBand * centerMask * 0.55).clamp(0.0, 0.55);
+        final edgeBoost = ((nx.abs() - 0.22) / 0.38).clamp(0.0, 1.0) * 0.18;
+
+        final depth = ((cy - topStart) / (size.height - topStart)).clamp(0.0, 1.0);
+        final depthEase = Curves.easeInOut.transform(depth);
+
+        final vx = (cx - focusX) / size.width;
+        final vy = (cy - focusY) / depthSpan;
+        final dist = math.sqrt((vx * vx) + (vy * vy));
+
+        final core = math.exp(-math.pow(dist / 0.18, 2));
+        final trailAxis = (vx * driftX) + (vy * driftY);
+        final trail = math.exp(-math.pow((trailAxis + 0.10) / 0.25, 2)) *
+          math.exp(-math.pow(dist / 0.42, 2));
+        final moverInfluence = (0.72 * core + 0.28 * trail).clamp(0.0, 1.0);
+
+        final meta = _cellMeta(col, row);
+        final cellWave = 0.5 + 0.5 * math.sin(t + meta.phase);
+        final cellBreath = Curves.easeInOut.transform(cellWave);
+
+        // Stable per-cell variation avoids frame-to-frame random flicker.
+        final noise = meta.colorVar;
+        final colorMix = (0.30 +
+            (0.38 * depthEase) +
+            (0.28 * moverInfluence) +
+            noise)
+            .clamp(0.0, 1.0);
+
+        final cloudWave = 0.5 +
+            0.5 *
+            math.sin(t + (vx * 6.4) - (vy * 4.7) + meta.phase);
+        final darkStrength =
+            (cloudWave * (0.12 + (0.26 * meta.darkVar)) * (1.0 - cellBreath * 0.25))
+                .clamp(0.0, 0.38);
+
+        final directional = (((vx * lightX) + (vy * lightY)) * 0.5 + 0.5)
+          .clamp(0.0, 1.0);
+        final depth3D = (directional - 0.5) * 0.22;
+
+        var intensity = (0.40 + depthEase * 0.52) *
+          (0.86 + (0.12 * moverInfluence) + depth3D) *
+            (0.86 + (0.20 * cellBreath)) *
+            (0.92 + meta.intensityVar) *
+            topBlend *
+            (1.0 - hollow) *
+            (1.0 + edgeBoost) *
+            colorIntensity;
+        intensity = intensity.clamp(0.0, 1.0);
+
+        final baseColor = Color.lerp(_tealA, _tealB, colorMix)!;
+        final darkColor = Color.lerp(_darkA, _darkB, colorMix)!;
+        final enrichedColor = Color.lerp(baseColor, darkColor, darkStrength)!;
+        final cellColor = enrichedColor
+            .withValues(alpha: (0.90 * intensity * (0.90 - (darkStrength * 0.20))).clamp(0.0, 0.95));
+        pixelPaint.color = cellColor;
+        canvas.drawRect(
+          Rect.fromLTRB(left, top, right, bottom),
+          pixelPaint,
+        );
+
+        // Sparse star pixels with independent timing:
+        // quick fade-in, slower fade-out, and no hard popping.
+        if (meta.starSeed > 0.986 && topBlend > 0.30) {
+          final starPhase = meta.starPhase * 2 * math.pi;
+          final starBase = 0.5 + 0.5 * math.sin((t * 2) + starPhase);
+          final starTwinkle = 0.5 + 0.5 * math.sin((t * 3) + (meta.phase * 1.3));
+          final starPulse = math.pow(
+            ((starBase * 0.72) + (starTwinkle * 0.28)).clamp(0.0, 1.0),
+            3.4,
+          ).toDouble();
+
+          final starStrength =
+              (starPulse * meta.starPower * (1.0 - hollow) * (0.35 + topBlend * 0.65))
+                  .clamp(0.0, 1.0);
+          if (starStrength > 0.001) {
+            final starTint = Color.lerp(_tealAccentA, Colors.white, starStrength)!;
+            pixelPaint.color = starTint.withValues(alpha: (0.015 + (0.11 * starStrength)).clamp(0.0, 0.12));
+            canvas.drawRect(
+              Rect.fromLTRB(left, top, right, bottom),
+              pixelPaint,
+            );
+          }
+        }
+      }
+    }
+
+    // Feather the boundary so top white and bottom mosaic blend softly.
+    final featherRect = Rect.fromLTWH(0, topStart - feather * 1.2, size.width, feather * 2.4);
+    final featherPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.white,
+          Colors.white.withValues(alpha: 0.75),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.45, 1.0],
+      ).createShader(featherRect);
+    canvas.drawRect(featherRect, featherPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PixelMosaicBackgroundPainter oldDelegate) {
+    return oldDelegate.gridColumns != gridColumns ||
+        oldDelegate.animationSpeed != animationSpeed ||
+        oldDelegate.colorIntensity != colorIntensity;
+  }
+}
+
+class _CellMeta {
+  const _CellMeta({
+    required this.phase,
+    required this.intensityVar,
+    required this.colorVar,
+    required this.darkVar,
+    required this.starSeed,
+    required this.starPhase,
+    required this.starRate,
+    required this.starPower,
+  });
+
+  final double phase;
+  final double intensityVar;
+  final double colorVar;
+  final double darkVar;
+  final double starSeed;
+  final double starPhase;
+  final double starRate;
+  final double starPower;
 }
 
 class _MidScreenReadabilityGradient extends StatelessWidget {
@@ -874,21 +1066,25 @@ class _AuthFormHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     const headerColor = Color(0xFF315A53);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        GestureDetector(
-          onTap: onBack,
-          child: Icon(
-            Icons.arrow_back,
-            color: headerColor.withValues(alpha: 0.82),
-            size: 22,
+    return SizedBox(
+      height: 30,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: GestureDetector(
+              onTap: onBack,
+              child: Icon(
+                Icons.arrow_back,
+                color: headerColor.withValues(alpha: 0.82),
+                size: 22,
+              ),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
+          Text(
             title,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'Doto',
               fontSize: titleSize * 0.76,
@@ -897,8 +1093,8 @@ class _AuthFormHeader extends StatelessWidget {
               color: headerColor,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1044,7 +1240,7 @@ class _AuthSubmitButton extends StatelessWidget {
                 : Text(
                     text,
                     style: TextStyle(
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Doto',
                       fontSize: bodySize * 1.05,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.2,
@@ -1666,75 +1862,133 @@ class _FullScreenBackgroundImage extends StatelessWidget {
   }
 }
 
-class _PetOverlay extends StatefulWidget {
-  const _PetOverlay({
+class AnimatedPet extends StatefulWidget {
+  const AnimatedPet({
+    super.key,
     required this.petSize,
-    required this.floatOffset,
-    required this.glowStrength,
   });
 
   final double petSize;
-  final Animation<double> floatOffset;
-  final Animation<double> glowStrength;
 
   @override
-  State<_PetOverlay> createState() => _PetOverlayState();
+  State<AnimatedPet> createState() => _AnimatedPetState();
 }
 
-class _PetOverlayState extends State<_PetOverlay>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _scaleAnimation;
+class _AnimatedPetState extends State<AnimatedPet>
+    with TickerProviderStateMixin {
+  static const _wingFrames = <String>[
+    'assets/imgs/new-pet-2.png', // wings up
+    'assets/imgs/new-pet.png', // neutral
+    'assets/imgs/new-pet-3.png', // wings down
+    'assets/imgs/new-pet.png', // neutral
+  ];
+
+  late final AnimationController _wingController;
+  late final AnimationController _floatController;
+  late final Animation<double> _floatOffset;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
+    _wingController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 720),
+    )..repeat();
+
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
     )..repeat(reverse: true);
-    _scaleAnimation = Tween<double>(begin: 0.98, end: 1.02).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+
+    _floatOffset = Tween<double>(begin: -30, end: -14).animate(
+      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final frame in _wingFrames) {
+        precacheImage(AssetImage(frame), context);
+      }
+    });
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
+    _wingController.dispose();
+    _floatController.dispose();
     super.dispose();
+  }
+
+  int _currentFrameIndex(double t) {
+    // Slightly longer hold on neutral frames for smoother RPG-like feel.
+    if (t < 0.20) return 0; // up
+    if (t < 0.50) return 1; // neutral
+    if (t < 0.70) return 2; // down
+    return 3; // neutral
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Pet with floating, glow, and pulse animation
-        AnimatedBuilder(
-          animation: Listenable.merge(
-              [widget.floatOffset, widget.glowStrength, _scaleAnimation]),
-          builder: (context, child) {
-            final scale = _scaleAnimation.value;
-            return Transform.translate(
-              offset: Offset(0, widget.floatOffset.value),
-              child: Transform.scale(
-                scale: scale,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Pet image
-                    Image.asset(
-                      'assets/imgs/new-pet.png',
-                      width: widget.petSize,
-                      fit: BoxFit.contain,
+    return AnimatedBuilder(
+      animation: Listenable.merge([_wingController, _floatController]),
+      builder: (context, child) {
+        final frame = _wingFrames[_currentFrameIndex(_wingController.value)];
+        final floatDy = _floatOffset.value.roundToDouble();
+        final pixelSize = widget.petSize.roundToDouble();
+
+        final auraT = 0.5 + (0.5 * math.sin(_floatController.value * 2 * math.pi));
+        final ringScale = 1.0 + (auraT * 0.12);
+        final auraAlpha = 0.018 + (auraT * 0.016);
+        final ringAlpha = 0.010 + (auraT * 0.014);
+
+        return Transform.translate(
+          offset: Offset(0, floatDy),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              IgnorePointer(
+                child: Transform.scale(
+                  scale: ringScale,
+                  child: Container(
+                    width: pixelSize * 0.82,
+                    height: pixelSize * 0.82,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFF9CCFC4).withValues(alpha: ringAlpha),
+                        width: 6,
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            );
-          },
-        ),
-      ],
+              IgnorePointer(
+                child: Container(
+                  width: pixelSize * 0.72,
+                  height: pixelSize * 0.72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFFBFE8DE).withValues(alpha: auraAlpha),
+                        const Color(0xFF8BC3B7).withValues(alpha: auraAlpha * 0.4),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.54, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              Image.asset(
+                frame,
+                width: pixelSize,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.none,
+                gaplessPlayback: true,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -1758,8 +2012,8 @@ class _PrimaryActionButton extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                _LoginScreenState._buttonStart.withValues(alpha: 0.85),
-                _LoginScreenState._buttonEnd.withValues(alpha: 0.85),
+                const Color.fromRGBO(45, 114, 107, 1).withValues(alpha: 0.85),
+                const Color.fromRGBO(24, 79, 75, 1).withValues(alpha: 0.85),
               ],
             ),
             border: Border.all(
