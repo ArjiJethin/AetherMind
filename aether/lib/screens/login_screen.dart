@@ -441,9 +441,7 @@ class _LoginScreenState extends State<LoginScreen>
 
 class _AnimatedTopBottomGradient extends StatefulWidget {
   const _AnimatedTopBottomGradient({
-    this.gridColumns,
     this.animationSpeed = 1.0,
-    this.colorIntensity = 1.0,
   });
 
   final int? gridColumns;
@@ -568,11 +566,12 @@ class _PixelMosaicBackgroundPainter extends CustomPainter {
     final cellH = cellW;
     final rows = (size.height / cellH).ceil() + 1;
 
-    // Top 20% remains clean white.
+    // Top 13% remains clean white, so the pixel mosaic covers 87% height.
     final bgPaint = Paint()..color = Colors.white;
     canvas.drawRect(Offset.zero & size, bgPaint);
 
-    final topStart = size.height * 0.20;
+    final topStart = size.height * 0.13;
+    final topCenterDip = size.height * 0.10;
     final feather = size.height * 0.085;
     final basinY = size.height * 0.60; // 40% from bottom
 
@@ -602,11 +601,17 @@ class _PixelMosaicBackgroundPainter extends CustomPainter {
         final cx = (left + right) * 0.5;
         final cy = (top + bottom) * 0.5;
 
-        if (cy < topStart - feather) {
+        final x01 = (cx / size.width).clamp(0.0, 1.0);
+        final distFromCenter = ((x01 - 0.5).abs() * 2).clamp(0.0, 1.0);
+        final centerDipFactor =
+            1.0 - Curves.easeInOut.transform(distFromCenter);
+        final topEdgeY = topStart + (topCenterDip * centerDipFactor);
+
+        if (cy < topEdgeY - feather) {
           continue;
         }
 
-        final blendIn = ((cy - (topStart - feather)) / (feather * 2)).clamp(0.0, 1.0);
+        final blendIn = ((cy - (topEdgeY - feather)) / (feather * 2)).clamp(0.0, 1.0);
         final topBlend = Curves.easeInOut.transform(blendIn);
 
         final nx = (cx / size.width) - 0.5;
@@ -618,7 +623,7 @@ class _PixelMosaicBackgroundPainter extends CustomPainter {
         final hollow = (uBand * centerMask * 0.55).clamp(0.0, 0.55);
         final edgeBoost = ((nx.abs() - 0.22) / 0.38).clamp(0.0, 1.0) * 0.18;
 
-        final depth = ((cy - topStart) / (size.height - topStart)).clamp(0.0, 1.0);
+        final depth = ((cy - topEdgeY) / (size.height - topEdgeY)).clamp(0.0, 1.0);
         final depthEase = Curves.easeInOut.transform(depth);
 
         final vx = (cx - focusX) / size.width;

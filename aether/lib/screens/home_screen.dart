@@ -111,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                       const SizedBox(height: _sectionSpacing),
-                      _ProgressSection(shimmer: _shimmerController),
+                      const _ProgressSection(),
                       const SizedBox(height: _sectionSpacing),
                       _DailyJournalCard(
                         onTapWrite: () {
@@ -467,7 +467,7 @@ class _TodayVibeCard extends StatelessWidget {
                               fontFamily: 'Doto',
                               fontSize: 17,
                               fontWeight: FontWeight.lerp(FontWeight.w800, FontWeight.w900, 0.4),
-                              color: Colors.white.withValues(alpha: 0.96),
+                              color: const Color(0xFF2F9E6F),
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -717,9 +717,7 @@ class _HeroCheckInButton extends StatelessWidget {
 }
 
 class _ProgressSection extends StatelessWidget {
-  const _ProgressSection({required this.shimmer});
-
-  final Animation<double> shimmer;
+  const _ProgressSection();
 
   @override
   Widget build(BuildContext context) {
@@ -746,249 +744,213 @@ class _ProgressSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            color: Colors.white.withValues(alpha: 0.82),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF203A43).withValues(alpha: 0.08),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 360;
+            final cards = [
+              Expanded(
+                child: _ProgressStatCard(
+                  title: 'Current Streak',
+                  valueText: '12 days',
+                  subtitle: 'Consistency this month',
+                  progress: 0.76,
+                  icon: Icons.local_fire_department_rounded,
+                  ringColor: const Color(0xFF2FB07E),
+                  iconBg: const Color(0xFFD9F1E7),
+                ),
               ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-            child: Column(
+              Expanded(
+                child: _ProgressStatCard(
+                  title: 'Weekly Goals',
+                  valueText: '4 / 5',
+                  subtitle: 'One check-in to complete',
+                  progress: 0.80,
+                  icon: Icons.track_changes_rounded,
+                  ringColor: const Color(0xFF3AA9DE),
+                  iconBg: const Color(0xFFD9EEFA),
+                ),
+              ),
+            ];
+
+            if (isNarrow) {
+              return Column(
+                children: [
+                  cards[0],
+                  const SizedBox(height: 12),
+                  cards[1],
+                ],
+              );
+            }
+
+            return Row(
               children: [
-                Row(
-                  children: [
-                    const _MetricTile(
-                      icon: Icons.local_fire_department_rounded,
-                      iconBg: Color(0xFFD2EFE5),
-                      iconColor: Color(0xFF1F9D73),
-                      title: '12',
-                      titleSuffix: 'days',
-                      subtitle: 'Current streak',
-                    ),
-                    Container(
-                      width: 1,
-                      height: 62,
-                      margin: const EdgeInsets.symmetric(horizontal: 18),
-                      color: const Color(0xFFDCE6E2),
-                    ),
-                    const Expanded(
-                      child: _GoalTile(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                _ShimmerProgressBar(
-                  progress: 0.82,
-                  shimmer: shimmer,
-                ),
-                const SizedBox(height: 12),
+                cards[0],
+                const SizedBox(width: 12),
+                cards[1],
               ],
-            ),
-          ),
+            );
+          },
         ),
       ],
     );
   }
 }
 
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
+class _ProgressStatCard extends StatelessWidget {
+  const _ProgressStatCard({
     required this.title,
-    required this.titleSuffix,
+    required this.valueText,
     required this.subtitle,
+    required this.progress,
+    required this.icon,
+    required this.ringColor,
+    required this.iconBg,
   });
 
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
   final String title;
-  final String titleSuffix;
+  final String valueText;
   final String subtitle;
+  final double progress;
+  final IconData icon;
+  final Color ringColor;
+  final Color iconBg;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 170;
-          final iconSize = compact ? 48.0 : 58.0;
-          final iconGlyph = compact ? 26.0 : 32.0;
+    final hasSuffix = valueText.contains(' ');
+    final valueParts = hasSuffix ? valueText.split(' ') : <String>[valueText];
+    final valueMain = valueParts.first;
+    final valueSuffix = hasSuffix ? valueParts.sublist(1).join(' ') : '';
 
-          return Row(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.92),
+            const Color(0xFFF4F9F7),
+          ],
+        ),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.9),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1D3D47).withValues(alpha: 0.09),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+          child: Row(
             children: [
-              Container(
-                width: iconSize,
-                height: iconSize,
-                decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-                child: Icon(icon, color: iconColor, size: iconGlyph),
+              SizedBox(
+                width: 68,
+                height: 68,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 68,
+                      height: 68,
+                      child: CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 6,
+                        backgroundColor: const Color(0xFFE3ECE8),
+                        valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+                      ),
+                    ),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: iconBg,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: ringColor, size: 22),
+                    ),
+                  ],
+                ),
               ),
-              SizedBox(width: compact ? 8 : 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    RichText(
+                    Text(
+                      title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      text: TextSpan(
-                        style: GoogleFonts.poppins(
-                          color: const Color(0xFF203D48),
-                        ),
-                        children: [
-                          TextSpan(
-                            text: title,
-                            style: TextStyle(
-                              fontSize: compact ? 16 : 19,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          TextSpan(
-                            text: ' $titleSuffix',
-                            style: TextStyle(
-                              fontSize: compact ? 12 : 14.5,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF203D48).withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ],
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF4D6A72),
                       ),
                     ),
                     const SizedBox(height: 2),
+                    if (hasSuffix)
+                      RichText(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          style: GoogleFonts.poppins(
+                            color: ringColor,
+                            height: 1.0,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: valueMain,
+                              style: const TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            TextSpan(
+                              text: ' $valueSuffix',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        valueText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: ringColor,
+                          height: 1.0,
+                        ),
+                      ),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                        fontSize: compact ? 11 : 12.2,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.w500,
-                        color: const Color(0xFF6B7E89),
+                        color: const Color(0xFF6A7E86),
                       ),
                     ),
                   ],
                 ),
               ),
             ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _GoalTile extends StatelessWidget {
-  const _GoalTile();
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 152;
-        final circleSize = compact ? 58.0 : 72.0;
-        final iconSize = compact ? 18.0 : 22.0;
-
-        return Row(
-          children: [
-            SizedBox(
-              width: circleSize,
-              height: circleSize,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    value: 0.8,
-                    strokeWidth: compact ? 5 : 6,
-                    backgroundColor: const Color(0xFFE2ECE8),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF33BA8B)),
-                  ),
-                  Icon(Icons.auto_awesome, color: const Color(0xFF33BA8B), size: iconSize),
-                ],
-              ),
-            ),
-            SizedBox(width: compact ? 6 : 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '4/5',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: compact ? 16 : 19,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF203E49),
-                    ),
-                  ),
-                  Text(
-                    'Weekly goals',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: compact ? 11 : 12.2,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF6B7E89),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _ShimmerProgressBar extends StatelessWidget {
-  const _ShimmerProgressBar({required this.progress, required this.shimmer});
-
-  final double progress;
-  final Animation<double> shimmer;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        height: 10,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(color: const Color(0xFFE1E7E4)),
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: progress,
-              child: AnimatedBuilder(
-                animation: shimmer,
-                builder: (context, child) {
-                  final move = -1 + (shimmer.value * 2);
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment(move - 0.5, 0),
-                        end: Alignment(move + 1.2, 0),
-                        colors: const [
-                          Color(0xFF38C092),
-                          Color(0xFF5FD4A9),
-                          Color(0xFF2EB184),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
