@@ -19,6 +19,67 @@ class _JournalTestScreenState extends State<JournalTestScreen> {
   final JournalController _journalController = JournalController();
   final ReportService _reportService = ReportService();
   bool _isLoading = false;
+  DateTime? _typingStart;
+  DateTime? _lastKeyTimestamp;
+  int _totalKeystrokes = 0;
+  int _backspaceCount = 0;
+  final List<double> _pauseDurations = <double>[];
+
+  void _onChanged(String value) {
+    final now = DateTime.now();
+    _typingStart ??= now;
+
+    if (_lastKeyTimestamp != null) {
+      final pauseSeconds = now.difference(_lastKeyTimestamp!).inMilliseconds / 1000;
+      if (pauseSeconds > 0) {
+        _pauseDurations.add(pauseSeconds);
+      }
+    }
+
+    final previousLength = _controller.text.length;
+    final currentLength = value.length;
+
+    if (currentLength < previousLength) {
+      _backspaceCount += (previousLength - currentLength);
+    } else if (currentLength > previousLength) {
+      _totalKeystrokes += (currentLength - previousLength);
+    }
+
+    _lastKeyTimestamp = now;
+  }
+
+  Map<String, dynamic> _buildKeystrokeData(String finalText) {
+    final start = _typingStart;
+    final end = _lastKeyTimestamp ?? DateTime.now();
+    final totalTime = start == null
+        ? 0.0
+        : end.difference(start).inMilliseconds / 1000;
+
+    final keystrokeCount = _totalKeystrokes <= 0 ? finalText.length : _totalKeystrokes;
+    final typingSpeed = totalTime > 0 ? keystrokeCount / totalTime : 0.0;
+    final avgPause =
+        _pauseDurations.isEmpty ? 0.0 : _pauseDurations.reduce((a, b) => a + b) / _pauseDurations.length;
+    final maxPause = _pauseDurations.isEmpty
+        ? 0.0
+        : _pauseDurations.reduce((a, b) => a > b ? a : b);
+
+    return <String, dynamic>{
+      'typing_speed': typingSpeed,
+      'avg_pause': avgPause,
+      'max_pause': maxPause,
+      'backspace_count': _backspaceCount,
+      'total_time': totalTime,
+      'keystroke_count': keystrokeCount,
+    };
+  }
+
+  void _resetKeystrokeTracking() {
+    _typingStart = null;
+    _lastKeyTimestamp = null;
+    _totalKeystrokes = 0;
+    _backspaceCount = 0;
+    _pauseDurations.clear();
+  }
 
   @override
   void dispose() {
@@ -48,9 +109,10 @@ class _JournalTestScreenState extends State<JournalTestScreen> {
       _isLoading = true;
     });
     try {
+      final keystrokeData = _buildKeystrokeData(text);
       print('STEP 1: Calling createJournal');
     final entry = await _journalController
-      .createJournal(text)
+      .createJournal(text, keystrokeData: keystrokeData)
           .timeout(const Duration(seconds: 12));
 
       print('STEP 2: createJournal result = $entry');
@@ -81,6 +143,7 @@ class _JournalTestScreenState extends State<JournalTestScreen> {
         ),
       );
       _controller.clear();
+  _resetKeystrokeTracking();
     } on TimeoutException {
       print('STEP ERROR: Request timed out');
       if (!mounted) {
@@ -119,6 +182,7 @@ class _JournalTestScreenState extends State<JournalTestScreen> {
           children: [
             TextField(
               controller: _controller,
+              onChanged: _onChanged,
               minLines: 4,
               maxLines: 8,
               decoration: const InputDecoration(
